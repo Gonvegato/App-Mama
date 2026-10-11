@@ -1,6 +1,6 @@
 // Ajustes: apariencia, cuenta, Gmail, móvil y copias de seguridad.
 import { html, useState, useEffect } from '../../vendor/preact-htm.js';
-import { Btn, Icon, IconBtn, Field, Segmented, confirm, pickFiles, Spinner, copyText, Select } from './kit.js';
+import { Btn, Icon, IconBtn, Field, Segmented, confirm, pickFiles, Spinner, copyText, Select, Modal, openModal } from './kit.js';
 import { THEMES, TEXT_SIZES } from '../lib/theme.js';
 import { MAP_STYLES } from '../lib/leaflet-loader.js';
 import { useStore, setPrefs, saveSettings, signOut, resetConfig, refresh, exportAll, importTrip, toast, getBackend } from '../lib/store.js';
@@ -75,6 +75,46 @@ function Gmail() {
   </${Section}>`;
 }
 
+function PasswordForm({ close }) {
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const save = async () => {
+    if (a.length < 6) { setErr('Usa al menos 6 caracteres.'); return; }
+    if (a !== b) { setErr('Las dos contraseñas no coinciden.'); return; }
+    setBusy(true); setErr('');
+    try { await getBackend().changePassword(a); toast('Contraseña cambiada', 'ok'); close(true); }
+    catch (e) { setErr(e.message); setBusy(false); }
+  };
+  return html`<${Modal} title="Cambiar la contraseña" close=${() => close(false)} size="sm" onSubmit=${save}
+    footer=${html`<${Btn} kind="ghost" onClick=${() => close(false)}>Cancelar</${Btn}><${Btn} kind="primary" type="submit" disabled=${busy}>Cambiar</${Btn}>`}>
+    <div class="form-grid">
+      <${Field} label="Nueva contraseña"><input class="input" type="password" autocomplete="new-password" value=${a} onInput=${e => setA(e.target.value)} autofocus /></${Field}>
+      <${Field} label="Repítela"><input class="input" type="password" autocomplete="new-password" value=${b} onInput=${e => setB(e.target.value)} /></${Field}>
+      ${err && html`<p class="error">${err}</p>`}
+    </div>
+  </${Modal}>`;
+}
+
+// Botón «Instalar» (Chrome y Edge lo permiten; en iPhone se hace desde Compartir).
+let installEvent = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; });
+
+function Help() {
+  return html`<${Section} id="ayuda" icon="info" title="Ayuda rápida">
+    <ul class="help-list">
+      <li><b>Crear un viaje:</b> botón «Nuevo viaje». Nombre, destino y fechas; la portada se puede cambiar cuando quieras desde «Portada y datos».</li>
+      <li><b>Billetes y reservas:</b> en «Reservas» guarda el vuelo, el hotel o las entradas con su código. Sube ahí mismo el billete en PDF o una foto.</li>
+      <li><b>Sin internet:</b> los billetes que hayas abierto alguna vez se pueden volver a abrir sin conexión. En «Documentos» puedes guardarlos todos de una vez.</li>
+      <li><b>Lugares:</b> en «Mapa», busca un sitio y pulsa «Añadir», o importa tus listas de Google Maps y los lugares de Apple Maps.</li>
+      <li><b>Correos:</b> en «Correos» aparecen los de Gmail relacionados con el viaje; marca los buenos y pulsa «Guardar».</li>
+      <li><b>Día a día:</b> en «Itinerario» ves cada día y puedes añadir planes con hora. Durante el viaje, el inicio muestra lo que toca hoy.</li>
+      <li><b>Letra más grande:</b> aquí arriba, en «Tamaño de la letra».</li>
+    </ul>
+  </${Section}>`;
+}
+
 function Backup() {
   const trips = useStore(s => s.trips);
   const imp = async () => {
@@ -139,6 +179,7 @@ export function Settings({ route }) {
         <p class="muted small">${s.pending ? `Hay ${s.pending} cambio(s) esperando conexión.` : s.lastSync ? `Última sincronización: ${new Date(s.lastSync).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}</p>
         <div class="btn-row">
           <${Btn} icon="refresh" onClick=${() => refresh().then(() => toast('Sincronizado', 'ok'))}>Sincronizar ahora</${Btn}>
+          <${Btn} icon="key" onClick=${() => openModal(PasswordForm)}>Cambiar contraseña</${Btn}>
           <${Btn} kind="ghost" icon="log-out" onClick=${async () => { if (await confirm('¿Cerrar sesión?', 'Para volver a entrar necesitarás el correo y la contraseña.', { okLabel: 'Cerrar sesión' })) signOut(); }}>Cerrar sesión</${Btn}>
         </div>` : html`
         <p>Modo <b>solo este dispositivo</b>: los viajes se guardan en este ${inApp ? 'ordenador' : 'navegador'} y no se ven en otros.</p>
@@ -157,9 +198,12 @@ export function Settings({ route }) {
           <p><b>iPhone:</b> ábrela con Safari → botón <b>Compartir</b> <span class="kbd">⬆</span> → <b>Añadir a pantalla de inicio</b>.</p>
           <p><b>Android:</b> ábrela con Chrome → menú <span class="kbd">⋮</span> → <b>Añadir a pantalla de inicio</b> o <b>Instalar aplicación</b>.</p>
           <p class="muted small">Quedará un icono como el de cualquier aplicación.</p>
+          ${installEvent && html`<${Btn} kind="primary" icon="download" onClick=${async () => { installEvent.prompt(); await installEvent.userChoice.catch(() => {}); installEvent = null; }}>Instalar en este dispositivo</${Btn}>`}
         </div>
       </div>`}
     </${Section}>
+
+    <${Help} />
 
     <${Backup} />
 

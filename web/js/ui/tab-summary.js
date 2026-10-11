@@ -5,7 +5,8 @@ import { TripForm } from './trip-form.js';
 import { ResCard, openReservation, addReservation } from './tab-bookings.js';
 import { MiniMap } from './tab-map.js';
 import { updateTrip } from '../lib/store.js';
-import { tripStats, RES_KINDS } from '../lib/model.js';
+import { tripStats, RES_KINDS, buildAgenda } from '../lib/model.js';
+import { AgendaItem } from './tab-itinerary.js';
 import { fmtDate, fmtRange, tripStatus, daysBetween, debounce, plural, todayISO, fmtMoney } from '../lib/util.js';
 import { forecast } from '../lib/weather.js';
 import { go, tripPath } from '../lib/router.js';
@@ -66,6 +67,15 @@ export function SummaryTab({ trip }) {
             ${!trip.travelers.length && html`<button type="button" class="link-btn small" onClick=${() => openModal(TripForm, { trip })}>Añadir</button>`}</div>
         </section>
 
+        ${st.kind === 'now' && (() => {
+          const today = buildAgenda(trip).days.find(d => d.day === todayISO());
+          return html`<section class="card today-card">
+            <h3 class="section-title"><${Icon} name="sun" size=${18} /> Hoy, ${fmtDate(todayISO(), 'daylong').toLowerCase()}</h3>
+            ${today?.items.length ? html`<ul class="agenda agenda-compact">${today.items.map(it => html`<${AgendaItem} item=${{ ...it, day: today.day }} trip=${trip} compact />`)}</ul>`
+              : html`<p class="muted">Nada programado para hoy.</p>`}
+            <button type="button" class="link-btn small" onClick=${() => go(tripPath(trip.id, 'itinerario'))}>Ver el itinerario completo</button>
+          </section>`;
+        })()}
         ${next ? html`<section class="next">
           <h3 class="section-title">Lo próximo</h3>
           <${ResCard} trip=${trip} r=${next} onOpen=${r => openReservation(trip, r)} />

@@ -364,7 +364,7 @@ export function MapTab({ trip, route }) {
     ${adding && html`<div class="map-hint"><${Icon} name="crosshair" size=${16} /><span>Toca el mapa donde quieras poner el punto</span><button type="button" class="link-btn" onClick=${() => setAdding(false)}>Cancelar</button></div>`}
 
     <button type="button" class=${cx('panel-toggle', panel && 'is-open')} onClick=${() => setPanel(p => !p)} aria-expanded=${panel}>
-      <${Icon} name=${panel ? 'chevron-left' : 'list'} size=${18} /><span>${panel ? 'Ocultar' : `Lista (${trip.places.length})`}</span></button>
+      <${Icon} name=${panel ? 'chevron-left' : 'search'} size=${18} /><span>${panel ? 'Ocultar' : `Buscar y lista${trip.places.length ? ` (${trip.places.length})` : ''}`}</span></button>
 
     ${panel && html`<aside class="map-panel">
       <form class="search-row" onSubmit=${e => { e.preventDefault(); search(); }}>

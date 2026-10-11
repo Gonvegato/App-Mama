@@ -153,6 +153,10 @@ export class CloudBackend {
     return { email: data.user.email, id: data.user.id };
   }
   async signOut() { await this.sb.auth.signOut(); }
+  async changePassword(password) {
+    const { error } = await this.sb.auth.updateUser({ password });
+    if (error) throw new Error(/should be at least|weak|short/i.test(error.message) ? 'La contraseña es demasiado corta o sencilla (mínimo 6 caracteres).' : /different from the old/i.test(error.message) ? 'La nueva contraseña debe ser distinta de la actual.' : niceError(error));
+  }
   async uidOrThrow() {
     const u = await this.getUser();
     if (!u) throw new Error('Tienes que iniciar sesión.');

@@ -67,6 +67,8 @@ function createWindow() {
   if (b?.maximized) win.maximize();
   win.once('ready-to-show', () => win.show());
   win.on('close', () => saveBounds(win));
+  // La app guarda los cambios pendientes antes de cerrar y los sube al volver a abrirla.
+  win.webContents.on('will-prevent-unload', e => e.preventDefault());
 
   // Enlaces externos: en el navegador normal. Archivos (blob:) en una ventana aparte.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -94,7 +96,6 @@ function buildMenu() {
       { role: 'reload', label: 'Recargar' },
       { role: 'zoomIn', label: 'Letra más grande' }, { role: 'zoomOut', label: 'Letra más pequeña' }, { role: 'resetZoom', label: 'Tamaño normal' },
       { type: 'separator' }, { role: 'togglefullscreen', label: 'Pantalla completa' },
-      { type: 'separator' }, { role: 'toggleDevTools', label: 'Herramientas de desarrollo' },
     ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

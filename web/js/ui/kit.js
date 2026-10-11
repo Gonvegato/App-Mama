@@ -125,7 +125,7 @@ export function Modal({ title, close, children, footer, size = 'md', class: cls,
     const prev = document.activeElement;
     const el = ref.current;
     const first = el?.querySelector('[autofocus], input:not([type=hidden]):not([type=checkbox]), textarea, select');
-    if (first && matchMedia('(pointer:fine)').matches) setTimeout(() => first.focus(), 30);
+    if (first && matchMedia('(pointer:fine)').matches) requestAnimationFrame(() => { if (!el.contains(document.activeElement)) first.focus(); });
     const entry = { close: () => dismissable && close() };
     escStack.push(entry);
     if (!first) el?.focus({ preventScroll: true });
