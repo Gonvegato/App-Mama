@@ -1,6 +1,7 @@
 // Página de un viaje: portada, pestañas y contenido.
 import { html, useEffect } from '../../vendor/preact-htm.js';
-import { Btn, Icon, Menu, openModal, confirm, Empty } from './kit.js';
+import { Btn, Icon, Menu, openModal, confirm, Empty, copyText } from './kit.js';
+import { tripToIcs, tripSummaryText } from '../lib/share.js';
 import { Cover } from './cover.js';
 import { TripForm } from './trip-form.js';
 import { SummaryTab } from './tab-summary.js';
@@ -61,6 +62,14 @@ export function TripPage({ route }) {
     { icon: 'edit', label: 'Editar viaje', onClick: () => openModal(TripForm, { trip }) },
     { icon: 'copy', label: 'Duplicar viaje', onClick: async () => { const t = await duplicateTrip(trip.id); if (t) { toast('Viaje duplicado', 'ok'); go(tripPath(t.id)); } } },
     { icon: 'print', label: 'Imprimir o guardar en PDF', onClick: () => printTrip(trip) },
+    { icon: 'calendar', label: 'Añadir al calendario (.ics)', onClick: () => { downloadBlob(new Blob([tripToIcs(trip)], { type: 'text/calendar' }), `${safeFileName(trip.title || 'viaje')}.ics`); toast('Abre el archivo descargado para añadir las reservas a tu calendario.', 'info'); } },
+    { icon: 'users', label: 'Compartir resumen', onClick: async () => {
+      const text = tripSummaryText(trip);
+      try {
+        if (navigator.share) { await navigator.share({ title: trip.title || trip.destination, text }); return; }
+      } catch (e) { if (e?.name === 'AbortError') return; }
+      await copyText(text); toast('Resumen copiado: pégalo en WhatsApp o en un correo.', 'ok');
+    } },
     { icon: 'download', label: 'Exportar copia (.json)', onClick: () => downloadBlob(new Blob([JSON.stringify({ app: 'cuaderno-de-viajes', version: 1, trips: [trip] }, null, 2)], { type: 'application/json' }), `${safeFileName(trip.title || 'viaje')}.json`) },
     '-',
     { icon: 'trash', label: 'Borrar viaje', danger: true, onClick: async () => {

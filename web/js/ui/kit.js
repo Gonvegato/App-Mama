@@ -240,10 +240,12 @@ export function Toggle({ checked, onChange, label }) {
   return html`<label class="toggle"><input type="checkbox" checked=${checked} onChange=${e => onChange(e.target.checked)} /><span class="toggle-track"><span></span></span>${label && html`<span class="toggle-label">${label}</span>`}</label>`;
 }
 
-export function copyText(text) {
-  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text);
+export async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch { /* se prueba de la otra forma */ }
   const ta = document.createElement('textarea');
-  ta.value = text; document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); } finally { ta.remove(); }
-  return Promise.resolve();
+  ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+  document.body.appendChild(ta); ta.select();
+  try { return document.execCommand('copy'); } catch { return false; } finally { ta.remove(); }
 }

@@ -15,7 +15,7 @@ Cada viaje tiene **portada, fechas y viajeros**, y estas secciones:
 | **Maleta** | Lista con plantillas (esencial, ropa, aseo, playa, frío, avión), grupos propios y copiar la maleta de otro viaje. |
 | **Gastos** | Presupuesto, gastos por categorías, precios de las reservas sumados solos y cuentas entre viajeros. |
 
-Además: 6 temas (claro y oscuro), tres tamaños de letra, funciona sin conexión con lo último que se cargó (los cambios se suben al volver la conexión), imprimir o guardar en PDF el viaje, duplicar viajes y copias de seguridad.
+Además: 6 temas (claro y oscuro), tres tamaños de letra, funciona sin conexión con lo último que se cargó (los cambios se suben al volver la conexión y se combinan con los hechos en otro dispositivo), billetes disponibles sin internet, añadir las reservas al calendario del móvil (.ics), compartir un resumen por WhatsApp, imprimir o guardar en PDF, crear una reserva desde un correo, duplicar viajes y copias de seguridad.
 
 ---
 
