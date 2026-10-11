@@ -140,14 +140,16 @@ function fit(map, group, trip, opts = {}) {
 // Puntos en los que centrar la vista inicial: lo que hay en el destino
 // (sin el aeropuerto de salida, que alejaría demasiado el mapa).
 function focusPoints(trip, data) {
-  const pts = [];
+  const pts = [], airports = [];
   for (const p of data.places) pts.push([p.lat, p.lng]);
-  for (const r of data.res) pts.push([r.at.lat, r.at.lng]);
+  for (const r of data.res) (r.res.kind === 'flight' ? airports : pts).push([r.at.lat, r.at.lng]);
   for (const r of data.routes) for (const q of r.points.filter((_, i) => i % 10 === 0)) pts.push(q);
   const c = trip.center || (data.places[0] ? { lat: data.places[0].lat, lng: data.places[0].lng } : null);
-  if (!c) return pts;
-  const near = pts.filter(([lat, lng]) => distanceKm(c, { lat, lng }) < 600);
-  return near.length ? near : pts;
+  if (!c) return pts.length ? pts : airports;
+  const d = ([lat, lng]) => distanceKm(c, { lat, lng });
+  // Aeropuertos solo si están junto al destino; el resto, si no está muy lejos.
+  const near = [...pts.filter(p => d(p) < 600), ...airports.filter(p => d(p) < 80)];
+  return near.length ? near : [...pts, ...airports];
 }
 
 function fitPoints(map, pts, trip, opts = {}) {

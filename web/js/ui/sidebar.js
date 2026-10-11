@@ -20,7 +20,7 @@ export function SyncBadge({ compact }) {
 function TripLink({ trip, active }) {
   const st = tripStatus(trip);
   return html`<a class=${cx('side-trip', active && 'is-active')} href=${`#${tripPath(trip.id)}`} aria-current=${active ? 'page' : undefined}>
-    <${Cover} trip=${trip} class="side-thumb" pattern=${false} />
+    <${Cover} trip=${trip} class="side-thumb" pattern=${false} thumb />
     <span class="side-text">
       <span class="side-title">${trip.title || trip.destination || 'Sin nombre'}</span>
       <span class="side-meta">${trip.startDate ? fmtRange(trip.startDate, trip.endDate) : 'Sin fechas'}${st.kind === 'upcoming' || st.kind === 'now' ? html` · <em>${st.label}</em>` : ''}</span>

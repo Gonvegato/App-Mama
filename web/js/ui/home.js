@@ -13,7 +13,7 @@ import { go, tripPath } from '../lib/router.js';
 function TripCard({ trip, size }) {
   const st = tripStatus(trip);
   return html`<a class=${`trip-card ${size === 'sm' ? 'trip-card-sm' : ''}`} href=${`#${tripPath(trip.id)}`}>
-    <${Cover} trip=${trip} class="trip-card-cover">
+    <${Cover} trip=${trip} class="trip-card-cover" thumb>
       ${st.kind !== 'past' && st.kind !== 'nodate' && html`<span class=${`badge badge-${st.kind}`}>${st.label}</span>`}
     </${Cover}>
     <div class="trip-card-body">

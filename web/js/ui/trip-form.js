@@ -33,7 +33,10 @@ export function CoverPicker({ tripId, cover, onChange, title }) {
     try {
       const img = await resizeImage(f, 2400, 0.86);
       const up = await uploadFile(tripId, 'portada', img);
-      onChange({ type: 'image', path: up.path, focusY: 50 });
+      // Miniatura para listas y tarjetas (gasta muchos menos datos en el móvil).
+      let thumbPath = null;
+      try { const th = await resizeImage(f, 640, 0.8, true); thumbPath = (await uploadFile(tripId, 'portada', th, `mini-${th.name}`)).path; } catch { /* sin miniatura */ }
+      onChange({ type: 'image', path: up.path, thumbPath, focusY: 50 });
     } catch (e) { toast(`No se pudo subir la foto: ${e.message}`, 'error'); }
     setBusy(false);
   };
@@ -77,7 +80,7 @@ export function TripForm({ close, trip }) {
       if (editing) {
         const oldCover = trip.cover?.type === 'image' ? trip.cover.path : null;
         updateTrip(id, t => { Object.assign(t, data); if (destChanged) t.center = null; });
-        if (oldCover && (data.cover.type !== 'image' || data.cover.path !== oldCover)) removeFiles([oldCover]);
+        if (oldCover && (data.cover.type !== 'image' || data.cover.path !== oldCover)) removeFiles([oldCover, trip.cover.thumbPath].filter(Boolean));
         close(true);
       } else {
         await createTrip({ id, ...data });
@@ -95,7 +98,7 @@ export function TripForm({ close, trip }) {
 
   const cancel = () => {
     // Si se subió una portada nueva y no se guarda, se borra.
-    if (f.cover?.type === 'image' && f.cover.path !== trip?.cover?.path) removeFiles([f.cover.path]);
+    if (f.cover?.type === 'image' && f.cover.path !== trip?.cover?.path) removeFiles([f.cover.path, f.cover.thumbPath].filter(Boolean));
     close(false);
   };
 
@@ -118,7 +121,7 @@ export function TripForm({ close, trip }) {
       <div class="form-col">
         <span class="field-label">Portada</span>
         <${CoverPicker} tripId=${id} cover=${f.cover} title=${f.title || f.destination} onChange=${c => {
-          if (f.cover?.type === 'image' && f.cover.path !== trip?.cover?.path && c.path !== f.cover.path) removeFiles([f.cover.path]);
+          if (f.cover?.type === 'image' && f.cover.path !== trip?.cover?.path && c.path !== f.cover.path) removeFiles([f.cover.path, f.cover.thumbPath].filter(Boolean));
           set({ cover: c });
         }} />
       </div>

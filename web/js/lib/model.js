@@ -199,6 +199,7 @@ export function sortTrips(trips, today = todayISO()) {
 export function tripFilePaths(trip) {
   const paths = [];
   if (trip.cover?.type === 'image' && trip.cover.path) paths.push(trip.cover.path);
+  if (trip.cover?.type === 'image' && trip.cover.thumbPath) paths.push(trip.cover.thumbPath);
   for (const d of trip.docs) if (d.path) paths.push(d.path);
   for (const e of trip.emails) if (e.bodyPath) paths.push(e.bodyPath);
   return paths;

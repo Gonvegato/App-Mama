@@ -15,8 +15,8 @@ export function coverStyle(cover, url, seed) {
   return `background:linear-gradient(135deg, ${p.a} 0%, ${p.b} 100%);`;
 }
 
-export function Cover({ trip, class: cls, children, pattern = true }) {
-  const url = useFileUrl(trip.cover?.type === 'image' ? trip.cover.path : null);
+export function Cover({ trip, class: cls, children, pattern = true, thumb = false }) {
+  const url = useFileUrl(trip.cover?.type === 'image' ? (thumb && trip.cover.thumbPath) || trip.cover.path : null);
   const isImg = trip.cover?.type === 'image';
   return html`<div class=${cx('cover', isImg ? 'cover-img' : 'cover-preset', pattern && !isImg && 'cover-pattern', cls)} style=${coverStyle(trip.cover, url, trip.id)}>${children}</div>`;
 }

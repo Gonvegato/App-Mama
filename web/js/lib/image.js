@@ -1,10 +1,10 @@
 // Reduce fotos antes de subirlas para ahorrar espacio y datos móviles.
-export async function resizeImage(file, maxSide = 2000, quality = 0.85) {
+export async function resizeImage(file, maxSide = 2000, quality = 0.85, force = false) {
   if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) || file.type === 'image/gif') return file;
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(file));
     const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
-    if (scale === 1 && file.size < 1.5 * 1024 * 1024) { bmp.close?.(); return file; }
+    if (!force && scale === 1 && file.size < 1.5 * 1024 * 1024) { bmp.close?.(); return file; }
     const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
@@ -12,7 +12,7 @@ export async function resizeImage(file, maxSide = 2000, quality = 0.85) {
     ctx.drawImage(bmp, 0, 0, w, h);
     bmp.close?.();
     const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
-    if (!blob || blob.size >= file.size) return file;
+    if (!blob || (!force && blob.size >= file.size)) return file;
     const name = (file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg';
     return new File([blob], name, { type: 'image/jpeg' });
   } catch {

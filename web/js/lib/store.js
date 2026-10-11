@@ -320,7 +320,7 @@ export async function duplicateTrip(id) {
       return np;
     } catch { return null; }
   };
-  if (t.cover?.type === 'image') t.cover.path = await copyFile(t.cover.path);
+  if (t.cover?.type === 'image') { t.cover.path = await copyFile(t.cover.path); t.cover.thumbPath = await copyFile(t.cover.thumbPath); }
   for (const d of t.docs) if (d.path) d.path = await copyFile(d.path);
   for (const e of t.emails) if (e.bodyPath) e.bodyPath = await copyFile(e.bodyPath);
   t.docs = t.docs.filter(d => d.path !== null);
