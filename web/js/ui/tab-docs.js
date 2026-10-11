@@ -1,9 +1,9 @@
 // Pestaña Documentos: billetes, entradas, guías, seguros, fotos y enlaces.
-import { html, useState } from '../../vendor/preact-htm.js';
-import { Btn, Icon, IconBtn, Empty, Chip, Modal, Field, openModal, confirm, pickFiles, DropZone, useFileUrl, Spinner, Menu, Select } from './kit.js';
+import { html, useState, useEffect } from '../../vendor/preact-htm.js';
+import { Btn, Icon, Empty, Chip, Modal, Field, openModal, confirm, pickFiles, DropZone, useFileUrl, Spinner, Menu, Select } from './kit.js';
 import { DOC_KINDS, resTitle } from '../lib/model.js';
-import { updateTrip, uploadFile, removeFiles, fileBlob, toast } from '../lib/store.js';
-import { fmtSize, fmtDate, sid, cx, downloadBlob, fileExt, isUrl, matches } from '../lib/util.js';
+import { updateTrip, uploadFile, removeFiles, fileBlob, toast, keepOffline, offlineFiles, useStore } from '../lib/store.js';
+import { fmtSize, sid, cx, downloadBlob, fileExt, isUrl, matches } from '../lib/util.js';
 import { resizeImage } from '../lib/image.js';
 
 export function guessDocKind(name = '', mime = '') {
@@ -23,7 +23,7 @@ const isPdf = d => /pdf/.test(d.mime || '') || /\.pdf$/i.test(d.name || '');
 
 export async function uploadDocs(trip, files, extra = {}) {
   const added = [];
-  const t0 = toast(files.length > 1 ? `Subiendo ${files.length} archivos…` : 'Subiendo archivo…');
+  toast(files.length > 1 ? `Subiendo ${files.length} archivos…` : 'Subiendo archivo…');
   for (const f0 of files) {
     try {
       const f = isImage({ mime: f0.type, name: f0.name }) ? await resizeImage(f0) : f0;
@@ -42,6 +42,8 @@ export async function uploadDocs(trip, files, extra = {}) {
 
 function DocViewer({ close, trip, doc }) {
   const url = useFileUrl(doc.path);
+  // Al abrir un documento se guarda una copia para poder verlo sin conexión.
+  useEffect(() => { if (doc.path && navigator.onLine) keepOffline(doc.path).catch(() => {}); }, []);
   const res = trip.reservations.find(r => r.id === doc.resId);
   const download = async () => {
     try { downloadBlob(await fileBlob(doc.path), doc.file || `${doc.name}.${fileExt(doc.path) || 'pdf'}`); }
@@ -116,6 +118,32 @@ function Thumb({ doc }) {
   return html`<div class=${cx('doc-thumb', 'doc-thumb-icon', `doc-${doc.kind}`)}><${Icon} name=${DOC_KINDS[doc.kind]?.icon || 'file'} size=${26} /><span>${ext.toUpperCase()}</span></div>`;
 }
 
+function OfflineButton({ trip }) {
+  const mode = useStore(s => s.mode);
+  const [st, setSt] = useState(null); // {done,total,cached}
+  const paths = trip.docs.filter(d => d.path).map(d => d.path);
+  useEffect(() => {
+    let alive = true;
+    Promise.all(paths.map(p => offlineFiles.has(p))).then(r => { if (alive) setSt(s => ({ ...(s || {}), cached: r.filter(Boolean).length })); });
+    return () => { alive = false; };
+  }, [paths.join('|')]);
+  if (mode !== 'cloud' || !paths.length) return null;
+  const all = st?.cached === paths.length;
+  const run = async () => {
+    let ok = 0;
+    setSt({ done: 0, total: paths.length, cached: st?.cached || 0 });
+    for (const [i, p] of paths.entries()) {
+      try { if (await keepOffline(p)) ok++; } catch { /* sigue */ }
+      setSt(s => ({ ...s, done: i + 1 }));
+    }
+    setSt({ cached: ok });
+    toast(ok === paths.length ? 'Todos los documentos se pueden ver sin conexión en este dispositivo' : `Guardados ${ok} de ${paths.length}`, ok === paths.length ? 'ok' : 'error');
+  };
+  if (st?.total) return html`<span class="offline-state"><${Spinner} size=${15} /> Guardando ${st.done} de ${st.total}…</span>`;
+  return html`<${Btn} icon=${all ? 'check-circle' : 'cloud-off'} kind=${all ? 'ghost' : 'default'} onClick=${run} title="Guarda una copia en este dispositivo para poder abrirlos sin internet (por ejemplo, en el aeropuerto)">
+    ${all ? 'Disponibles sin conexión' : 'Guardar para verlos sin conexión'}</${Btn}>`;
+}
+
 export function DocsTab({ trip }) {
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
@@ -134,6 +162,7 @@ export function DocsTab({ trip }) {
       </div>
       <div class="toolbar-right">
         ${trip.docs.length > 8 && html`<input class="input input-sm" type="search" placeholder="Buscar" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Buscar documentos" />`}
+        <${OfflineButton} trip=${trip} />
         <${Btn} icon="link" onClick=${addLink}>Enlace</${Btn}>
         <${Btn} kind="primary" icon="upload" onClick=${pick}>Subir archivos</${Btn}>
       </div>

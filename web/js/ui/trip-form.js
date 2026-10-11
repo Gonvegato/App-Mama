@@ -1,6 +1,6 @@
 // Crear y editar un viaje: nombre, destino, fechas, viajeros y portada.
 import { html, useState } from '../../vendor/preact-htm.js';
-import { Modal, Btn, Field, Icon, IconBtn, pickFiles, Spinner } from './kit.js';
+import { Modal, Btn, Field, Icon, pickFiles, Spinner } from './kit.js';
 import { Cover, presetById } from './cover.js';
 import { COVER_PRESETS } from '../lib/model.js';
 import { createTrip, updateTrip, uploadFile, removeFiles, toast, getTrip } from '../lib/store.js';
@@ -64,7 +64,6 @@ export function TripForm({ close, trip }) {
   }));
   const [saving, setSaving] = useState(false);
   const set = patch => setF(s => ({ ...s, ...patch }));
-  const uploaded = [];
 
   const nights = f.startDate && f.endDate ? daysBetween(f.startDate, f.endDate) : null;
 

@@ -3,11 +3,10 @@ import { html, useState, useEffect } from '../../vendor/preact-htm.js';
 import { Btn, Icon, IconBtn, Field, Segmented, confirm, pickFiles, Spinner, copyText, Select } from './kit.js';
 import { THEMES, TEXT_SIZES } from '../lib/theme.js';
 import { MAP_STYLES } from '../lib/leaflet-loader.js';
-import { useStore, setPrefs, saveSettings, signOut, resetConfig, refresh, exportAll, importTrip, toast, state, getBackend } from '../lib/store.js';
+import { useStore, setPrefs, saveSettings, signOut, resetConfig, refresh, exportAll, importTrip, toast, getBackend } from '../lib/store.js';
 import { gmailPing } from '../lib/gmail.js';
 import { downloadBlob, cx, fmtSize, todayISO } from '../lib/util.js';
 import qrcode from '../../vendor/qrcode.mjs';
-import { go } from '../lib/router.js';
 
 const APP_VERSION = '1.0.0';
 

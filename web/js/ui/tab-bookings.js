@@ -1,11 +1,11 @@
 // Pestaña Reservas: vuelos, alojamientos, trenes… con sus códigos y billetes.
 import { html, useState } from '../../vendor/preact-htm.js';
-import { Btn, Icon, IconBtn, Empty, Chip, openModal, confirm, Modal, copyText } from './kit.js';
+import { Btn, Icon, Empty, Chip, openModal, confirm, Modal, copyText } from './kit.js';
 import { ReservationForm, KindPicker } from './res-form.js';
 import { openDoc } from './tab-docs.js';
 import { RES_KINDS, resTitle, isTransport, DOC_KINDS } from '../lib/model.js';
 import { updateTrip, toast } from '../lib/store.js';
-import { fmtDateTime, fmtDate, dateOnly, timeOnly, fmtMoney, daysBetween, cx } from '../lib/util.js';
+import { fmtDateTime, fmtDate, dateOnly, timeOnly, fmtMoney, daysBetween } from '../lib/util.js';
 import { googleMapsUrl, appleMapsUrl, isApple, distanceKm } from '../lib/geo.js';
 import { go, tripPath } from '../lib/router.js';
 

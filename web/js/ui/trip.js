@@ -1,6 +1,6 @@
 // Página de un viaje: portada, pestañas y contenido.
 import { html, useEffect } from '../../vendor/preact-htm.js';
-import { Btn, Icon, IconBtn, Menu, openModal, confirm, Empty } from './kit.js';
+import { Btn, Icon, Menu, openModal, confirm, Empty } from './kit.js';
 import { Cover } from './cover.js';
 import { TripForm } from './trip-form.js';
 import { SummaryTab } from './tab-summary.js';
@@ -11,7 +11,7 @@ import { DocsTab } from './tab-docs.js';
 import { MailTab } from './tab-mail.js';
 import { PackingTab } from './tab-packing.js';
 import { ExpensesTab } from './tab-expenses.js';
-import { useStore, deleteTrip, duplicateTrip, toast } from '../lib/store.js';
+import { useStore, deleteTrip, duplicateTrip, toast, keepOffline, state } from '../lib/store.js';
 import { fmtRange, tripStatus, cx, downloadBlob, safeFileName, daysBetween } from '../lib/util.js';
 import { go, tripPath } from '../lib/router.js';
 import { printTrip } from './print.js';
@@ -38,6 +38,15 @@ export function TripPage({ route }) {
     document.querySelector('.tabs .is-active')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     document.querySelector('.main')?.scrollTo?.({ top: 0 });
   }, [route.tab, route.id]);
+
+  // Si el viaje está en curso o empieza en 3 días, se guardan solos los billetes y reservas para verlos sin conexión.
+  useEffect(() => {
+    if (!trip || state.mode !== 'cloud' || !navigator.onLine) return;
+    const st = tripStatus(trip);
+    if (!(st.kind === 'now' || (st.kind === 'upcoming' && st.days <= 3))) return;
+    const important = trip.docs.filter(d => d.path && ['billete', 'entrada', 'reserva', 'identidad', 'seguro'].includes(d.kind) && (d.size || 0) < 15 * 1024 * 1024);
+    (async () => { for (const d of important) { try { await keepOffline(d.path); } catch { /* sigue */ } } })();
+  }, [trip?.id, trip?.docs.length]);
 
   if (!trip) {
     return html`<div class="page"><${Empty} icon="compass" title=${phase === 'ready' ? 'Este viaje no existe' : 'Cargando…'} text=${phase === 'ready' ? 'Puede que se haya borrado desde otro dispositivo.' : ''}>

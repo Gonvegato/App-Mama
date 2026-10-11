@@ -862,3 +862,7 @@ html.has-modal .main { overflow: hidden; }
 }
 @media (max-width: 860px) { .mobile-bar.only-mobile { display: flex !important; } }
 .trip, .tab-body, .page-pad, .main > * { min-width: 0; }
+.map-panel { bottom: auto; max-height: calc(100% - 1.6rem); }
+.place-list { min-height: 0; }
+@media (max-width: 860px) { .map-panel { top: auto; bottom: 0; max-height: 62%; } }
+.offline-state { display: inline-flex; align-items: center; gap: .45rem; font-size: .9rem; color: var(--ink-2); }

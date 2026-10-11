@@ -51,7 +51,7 @@ Para actualizar el programa en el futuro: descargar el `.exe` nuevo e instalarlo
 
 ### 4. En el móvil
 
-La dirección es `https://<tu-usuario-en-minúsculas>.github.io/<repositorio>/` (por ejemplo `https://gonvegato.github.io/app-mama/`). En el programa de escritorio, **Ajustes → Usarla en el móvil** muestra un código QR para abrirla con la cámara.
+La dirección es `https://<tu-usuario-en-minúsculas>.github.io/<repositorio>/` (en este caso `https://gonvegato.github.io/App-Mama/`). En el programa de escritorio, **Ajustes → Usarla en el móvil** muestra un código QR para abrirla con la cámara.
 
 - **iPhone:** abrir en Safari → Compartir → **Añadir a pantalla de inicio**.
 - **Android:** abrir en Chrome → menú ⋮ → **Añadir a pantalla de inicio** / **Instalar aplicación**.

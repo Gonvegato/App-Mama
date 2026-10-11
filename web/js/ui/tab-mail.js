@@ -2,7 +2,7 @@
 import { html, useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import { Btn, Icon, IconBtn, Empty, Modal, openModal, confirm, Spinner, Toggle, Chip } from './kit.js';
 import { gmailConfigured, gmailSearch, gmailGet, gmailAttachment, suggestedQuery, quickQueries } from '../lib/gmail.js';
-import { updateTrip, uploadFile, removeFiles, fileBlob, toast, useStore } from '../lib/store.js';
+import { updateTrip, uploadFile, removeFiles, fileBlob, toast, useStore, offlineFiles } from '../lib/store.js';
 import { guessDocKind } from './tab-docs.js';
 import { sid, fmtSize, base64ToBlob, cx } from '../lib/util.js';
 import { go } from '../lib/router.js';
@@ -36,7 +36,7 @@ function MailReader({ close, trip, email, preview, onSave }) {
   const [err, setErr] = useState(null);
   useEffect(() => {
     if (preview || !email?.bodyPath) { if (!preview && email) setDoc(emailDoc({ plain: email.snippet || '' })); return; }
-    fileBlob(email.bodyPath).then(b => b.text()).then(setDoc).catch(e => setErr(e.message));
+    fileBlob(email.bodyPath).then(b => { offlineFiles.put(email.bodyPath, b); return b.text(); }).then(setDoc).catch(e => setErr(e.message));
   }, []);
   const m = preview || email;
   const savedDocs = email ? trip.docs.filter(d => d.fromEmail === email.id) : [];

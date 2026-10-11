@@ -116,7 +116,11 @@ async function loadAll() {
     const [trips, settings] = await Promise.all([backend.listTrips(), backend.getSettings().catch(() => ({}))]);
     // Los cambios pendientes de subir mandan sobre lo que viene del servidor.
     const pending = LS.get('cv-pending', {});
-    const byId = new Map(trips.map(t => [t.id, normalizeTrip(t)]));
+    const prev = new Map(state.trips.map(t => [t.id, t]));
+    for (const t of trips) base.set(t.id, t.updatedAt);
+    // Si un viaje no ha cambiado, se conserva el mismo objeto (así no se repinta nada).
+    const byId = new Map(trips.map(t => [t.id, prev.get(t.id)?.updatedAt === t.updatedAt && !timers.has(t.id) ? prev.get(t.id) : normalizeTrip(t)]));
+    for (const [id, t] of prev) if (timers.has(id) && byId.has(id)) byId.set(id, t);
     for (const [id, t] of Object.entries(pending)) {
       if (t === null) byId.delete(id);
       else byId.set(id, normalizeTrip(t));
@@ -143,6 +147,8 @@ function persistCache() {
 
 // ---------------- Guardado con cola ----------------
 const timers = new Map();
+const base = new Map();   // versión del servidor sobre la que se hicieron los cambios
+const ops = new Map();    // cambios pendientes de cada viaje (para combinarlos si hay conflicto)
 
 function queuePending(id, trip) {
   const p = LS.get('cv-pending', {});
@@ -157,19 +163,27 @@ function clearPending(id, trip) {
   setState({ pending: Object.keys(p).length });
 }
 
-async function saveNow(id) {
+async function saveNow(id, attempt = 0) {
   const trip = state.trips.find(t => t.id === id);
   if (!trip) return;
   queuePending(id, trip);
   setState(s => ({ syncing: s.syncing + 1 }));
+  const nOps = (ops.get(id) || []).length;
   try {
-    const saved = await backend.saveTrip(trip);
+    const saved = await backend.saveTrip(trip, base.get(id));
+    base.set(id, saved.updatedAt);
+    ops.set(id, (ops.get(id) || []).slice(nOps));
     clearPending(id, trip);
     // Conserva cambios hechos mientras se guardaba.
     const cur = state.trips.find(t => t.id === id);
     if (cur === trip) replaceTrip({ ...cur, updatedAt: saved.updatedAt }, false);
     persistCache();
   } catch (e) {
+    if (e.conflict && attempt < 3) {
+      mergeConflict(id, e.conflict);
+      await saveNow(id, attempt + 1);
+      return;
+    }
     if (!navigator.onLine || /conexión|fetch/i.test(String(e.message))) {
       setState({ online: false });
     } else {
@@ -178,6 +192,18 @@ async function saveNow(id) {
   } finally {
     setState(s => ({ syncing: Math.max(0, s.syncing - 1) }));
   }
+}
+
+// Hay una versión más nueva en el servidor: se aplican encima los cambios hechos aquí.
+function mergeConflict(id, server) {
+  let draft = normalizeTrip(clone(server));
+  for (const fn of ops.get(id) || []) {
+    try { const r = fn(draft); if (r) draft = normalizeTrip(r); } catch { /* cambio que ya no aplica */ }
+  }
+  draft.updatedAt = new Date().toISOString();
+  base.set(id, server.updatedAt);
+  setState({ trips: state.trips.map(t => (t.id === id ? draft : t)) });
+  toast('Había cambios hechos desde otro dispositivo: se han combinado con los tuyos.', 'info');
 }
 
 export async function flushPending() {
@@ -195,6 +221,11 @@ export async function flushPending() {
 window.addEventListener('online', () => { setState({ online: true }); flushPending(); });
 window.addEventListener('offline', () => setState({ online: false }));
 setInterval(() => { if (state.pending && navigator.onLine) flushPending(); }, 30000);
+// Trae cada poco los cambios hechos desde otros dispositivos (si no hay nada a medias).
+setInterval(() => {
+  if (state.mode === 'cloud' && state.phase === 'ready' && document.visibilityState === 'visible' && navigator.onLine
+    && !state.syncing && !state.pending && !timers.size && !document.documentElement.classList.contains('has-modal')) refresh();
+}, 120000);
 window.addEventListener('beforeunload', e => {
   for (const [id, t] of timers) { clearTimeout(t); timers.delete(id); const trip = state.trips.find(x => x.id === id); if (trip) queuePending(id, trip); }
   if (state.syncing) { e.preventDefault(); e.returnValue = ''; }
@@ -227,6 +258,8 @@ export function updateTrip(id, fn) {
   if (!cur) return;
   const draft = clone(cur);
   const r = fn(draft);
+  if (!ops.has(id)) ops.set(id, []);
+  ops.get(id).push(fn);
   const next = normalizeTrip(r || draft);
   next.updatedAt = new Date().toISOString();
   replaceTrip(next);
@@ -282,6 +315,7 @@ export async function deleteTrip(id) {
   const trip = getTrip(id);
   if (!trip) return;
   clearTimeout(timers.get(id)); timers.delete(id);
+  base.delete(id); ops.delete(id);
   setState({ trips: state.trips.filter(t => t.id !== id) });
   queuePending(id, null);
   try {
@@ -305,6 +339,8 @@ export const fileUrl = path => backend.fileUrl(path);
 export const fileUrls = paths => backend.fileUrls(paths);
 export const fileBlob = path => backend.fileBlob(path);
 export const removeFiles = paths => backend.removeFiles(paths).catch(() => {});
+export const keepOffline = path => backend.keepOffline(path);
+export { offlineFiles } from './backend.js';
 
 // ---------------- Ajustes sincronizados ----------------
 export async function saveSettings(patch) {

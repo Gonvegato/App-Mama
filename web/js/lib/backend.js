@@ -69,6 +69,7 @@ export class LocalBackend {
     await tx(this.db, 'files', 'readwrite', s => { for (const p of paths) s.delete(p); });
     for (const p of paths) { const u = this.urls.get(p); if (u) URL.revokeObjectURL(u); this.urls.delete(p); }
   }
+  async keepOffline() { return true; }
   async getSettings() { return (await tx(this.db, 'kv', 'readonly', s => s.get('settings'))) || {}; }
   async saveSettings(obj) { await tx(this.db, 'kv', 'readwrite', s => s.put(obj, 'settings')); }
   async usage() {
@@ -103,6 +104,36 @@ function niceError(e) {
   return m;
 }
 
+// Copia local de archivos para poder abrir billetes y reservas sin conexión.
+const OFFLINE_CACHE = 'cv-archivos-v1';
+const offlineKey = path => `https://cuaderno.local/archivo/${encodeURIComponent(path)}`;
+export const offlineFiles = {
+  async put(path, blob) {
+    if (!('caches' in window)) return false;
+    try {
+      const c = await caches.open(OFFLINE_CACHE);
+      await c.put(new Request(offlineKey(path)), new Response(blob, { headers: { 'Content-Type': blob.type || 'application/octet-stream' } }));
+      return true;
+    } catch { return false; }
+  },
+  async get(path) {
+    if (!('caches' in window)) return null;
+    try {
+      const c = await caches.open(OFFLINE_CACHE);
+      const r = await c.match(offlineKey(path));
+      return r ? await r.blob() : null;
+    } catch { return null; }
+  },
+  async has(path) {
+    if (!('caches' in window)) return false;
+    try { return !!(await (await caches.open(OFFLINE_CACHE)).match(offlineKey(path))); } catch { return false; }
+  },
+  async remove(paths) {
+    if (!('caches' in window)) return;
+    try { const c = await caches.open(OFFLINE_CACHE); for (const p of paths) await c.delete(offlineKey(p)); } catch { /* nada */ }
+  },
+};
+
 export class CloudBackend {
   constructor(url, key) { this.kind = 'cloud'; this.url = url; this.key = key; this.signed = new Map(); }
   async init() {
@@ -132,9 +163,24 @@ export class CloudBackend {
     if (error) throw new Error(niceError(error));
     return (data || []).map(r => ({ ...r.data, id: r.id, updatedAt: r.updated_at }));
   }
-  async saveTrip(trip) {
+  // Guarda un viaje. Si se indica la versión de partida (base) y en el servidor hay otra
+  // más reciente (cambiada desde otro dispositivo), lanza un error con esa versión en «conflict».
+  async saveTrip(trip, base) {
     const updatedAt = new Date().toISOString();
     const t = { ...trip, updatedAt };
+    if (base) {
+      const { data, error } = await this.sb.from('viajes').update({ data: t, updated_at: updatedAt }).eq('id', t.id).eq('updated_at', base).select('id');
+      if (error) throw new Error(niceError(error));
+      if (data?.length) return t;
+      const { data: cur, error: e2 } = await this.sb.from('viajes').select('id,data,updated_at').eq('id', t.id).maybeSingle();
+      if (e2) throw new Error(niceError(e2));
+      if (cur) {
+        const err = new Error('El viaje ha cambiado en otro dispositivo');
+        err.conflict = { ...cur.data, id: cur.id, updatedAt: cur.updated_at };
+        throw err;
+      }
+      // Se borró en otro dispositivo: se vuelve a crear con los cambios de este.
+    }
     const { error } = await this.sb.from('viajes').upsert({ id: t.id, data: t, updated_at: updatedAt });
     if (error) throw new Error(niceError(error));
     return t;
@@ -151,17 +197,38 @@ export class CloudBackend {
     return path;
   }
   async fileBlob(path) {
+    try {
+      const { data, error } = await this.sb.storage.from(BUCKET).download(await this.fullPath(path));
+      if (error) throw new Error(niceError(error));
+      return data;
+    } catch (e) {
+      const cached = await offlineFiles.get(path);
+      if (cached) return cached;
+      throw e;
+    }
+  }
+  // Descarga y guarda una copia local (para verla sin conexión).
+  async keepOffline(path) {
+    if (await offlineFiles.has(path)) return true;
     const { data, error } = await this.sb.storage.from(BUCKET).download(await this.fullPath(path));
     if (error) throw new Error(niceError(error));
-    return data;
+    return offlineFiles.put(path, data);
   }
   async fileUrl(path) {
     const c = this.signed.get(path);
-    if (c && c.exp > Date.now()) return c.url;
+    if (c && c.exp > Date.now() && navigator.onLine) return c.url;
+    if (!navigator.onLine) {
+      const blob = await offlineFiles.get(path);
+      if (blob) return URL.createObjectURL(blob);
+    }
     // Evita pedir dos veces la misma dirección a la vez.
     this.inflight ||= new Map();
     if (this.inflight.has(path)) return this.inflight.get(path);
-    const p = this._sign(path).finally(() => this.inflight.delete(path));
+    const p = this._sign(path).catch(async e => {
+      const blob = await offlineFiles.get(path);
+      if (blob) return URL.createObjectURL(blob);
+      throw e;
+    }).finally(() => this.inflight.delete(path));
     this.inflight.set(path, p);
     return p;
   }
@@ -191,6 +258,7 @@ export class CloudBackend {
   }
   async removeFiles(paths) {
     if (!paths?.length) return;
+    offlineFiles.remove(paths);
     const uidp = await this.uidOrThrow();
     const { error } = await this.sb.storage.from(BUCKET).remove(paths.map(p => `${uidp}/${p}`));
     if (error) throw new Error(niceError(error));

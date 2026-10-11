@@ -1,6 +1,6 @@
 // Pestaña Gastos: presupuesto, gastos del viaje y reservas pagadas.
 import { html, useState } from '../../vendor/preact-htm.js';
-import { Btn, Icon, IconBtn, Empty, Modal, Field, openModal, confirm, Progress, Select } from './kit.js';
+import { Btn, Icon, Empty, Modal, Field, openModal, confirm, Progress, Select } from './kit.js';
 import { EXPENSE_CATS, RES_KINDS, resTitle } from '../lib/model.js';
 import { updateTrip, toast } from '../lib/store.js';
 import { openReservation } from './tab-bookings.js';
@@ -16,7 +16,7 @@ function ExpenseForm({ close, trip, exp }) {
   const save = () => {
     const amount = parseAmount(e.amountTxt);
     if (!amount) { toast('Escribe el importe.', 'error'); return; }
-    const { amountTxt, ...rest } = e;
+    const { amountTxt: _txt, ...rest } = e;
     const out = { ...rest, amount, text: e.text.trim() || EXPENSE_CATS[e.category].label };
     updateTrip(trip.id, t => { const i = t.expenses.findIndex(x => x.id === out.id); if (i >= 0) t.expenses[i] = out; else t.expenses.push(out); });
     close(out);

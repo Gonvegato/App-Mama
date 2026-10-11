@@ -70,20 +70,24 @@ function AddRow({ trip, group }) {
 export function PackingTab({ trip }) {
   const [hideDone, setHideDone] = useState(false);
   const [newGroup, setNewGroup] = useState('');
+  const [manual, setManual] = useState(false);
+  const [extra, setExtra] = useState([]); // grupos nuevos aún vacíos
   const groups = [];
   for (const p of trip.packing) { const g = p.group || 'General'; if (!groups.includes(g)) groups.push(g); }
+  if (!groups.length && manual && !extra.length) groups.push('General');
+  for (const g of extra) if (!groups.includes(g)) groups.push(g);
   const done = trip.packing.filter(p => p.done).length;
   const total = trip.packing.length;
 
-  if (!total) return html`<div class="page-pad"><${Empty} icon="suitcase" title="Prepara la maleta"
+  if (!total && !manual) return html`<div class="page-pad"><${Empty} icon="suitcase" title="Prepara la maleta"
     text="Empieza con listas ya hechas (lo esencial, ropa, aseo, playa, frío…) y añade lo que quieras. Ve marcando lo que ya está dentro.">
     <${Btn} kind="primary" icon="sparkle" onClick=${() => openModal(TemplatePicker, { trip })}>Empezar con una lista</${Btn}>
-    <${Btn} icon="plus" onClick=${() => updateTrip(trip.id, t => { t.packing.push({ id: sid(), text: 'Pasaporte o DNI', done: false, group: 'General' }); })}>Lista vacía</${Btn}>
+    <${Btn} icon="plus" onClick=${() => setManual(true)}>Hacerla a mano</${Btn}>
   </${Empty}></div>`;
 
   return html`<div class="page-pad packing">
     <div class="pack-summary card">
-      <div class="pack-count"><b>${done}</b> de ${total} cosas en la maleta${done === total ? ' · ¡Lista!' : ''}</div>
+      <div class="pack-count">${total ? html`<b>${done}</b> de ${total} cosas en la maleta${done === total ? ' · ¡Lista!' : ''}` : 'Escribe abajo lo que quieras llevar y pulsa Intro.'}</div>
       <${Progress} value=${done} max=${total} label="Maleta" />
       <div class="toolbar">
         <label class="small muted check-inline"><input type="checkbox" checked=${hideDone} onChange=${e => setHideDone(e.target.checked)} /> Ocultar lo ya guardado</label>
@@ -111,7 +115,7 @@ export function PackingTab({ trip }) {
         </section>`;
       })}
       <section class="pack-group card pack-newgroup">
-        <form onSubmit=${e => { e.preventDefault(); const g = newGroup.trim(); if (g) { updateTrip(trip.id, t => { t.packing.push({ id: sid(), text: 'Nuevo elemento', done: false, group: g }); }); setNewGroup(''); } }}>
+        <form onSubmit=${e => { e.preventDefault(); const g = newGroup.trim(); if (g && !groups.includes(g)) { setExtra(x => [...x, g]); setNewGroup(''); } }}>
           <input class="input input-inline" placeholder="+ Nuevo grupo (Ej.: Para los nietos)" value=${newGroup} onInput=${e => setNewGroup(e.target.value)} />
         </form>
       </section>

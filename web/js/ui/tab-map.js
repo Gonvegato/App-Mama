@@ -8,8 +8,7 @@ import { loadLeaflet, tileLayer, currentMapStyle, MAP_STYLES } from '../lib/leaf
 import { PLACE_CATS, RES_KINDS, newPlace, resTitle, isTransport } from '../lib/model.js';
 import { updateTrip, toast, useStore, setPrefs } from '../lib/store.js';
 import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, googleDirectionsUrl, appleDirectionsUrl, isApple } from '../lib/geo.js';
-import { eachDay, fmtDate, cx, matches } from '../lib/util.js';
-import { go, tripPath } from '../lib/router.js';
+import { eachDay, fmtDate, cx } from '../lib/util.js';
 
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
