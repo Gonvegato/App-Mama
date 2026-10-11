@@ -127,7 +127,7 @@ export function ReservationForm({ close, trip, res, kind: kindProp }) {
         <${Field} label="Precio">
           <div class="money-input">
             <input class="input" inputmode="decimal" value=${price} onInput=${e => setPrice(e.target.value)} placeholder="0,00" />
-            <${Select} class="input" value=${currency} onChange=${e => setCurrency(e.target.value)} aria-label="Moneda">${CURRENCIES.map(c => html`<option>${c}</option>`)}</${Select}>
+            <${Select} class="input" value=${currency} onChange=${e => setCurrency(e.target.value)} aria-label="Moneda">${CURRENCIES.map(c => html`<option value=${c}>${c}</option>`)}</${Select}>
           </div>
         </${Field}>
       </div>

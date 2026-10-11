@@ -27,13 +27,13 @@ function ExpenseForm({ close, trip, exp }) {
     <div class="form-grid">
       <${Field} label="Importe"><div class="money-input">
         <input class="input input-lg" inputmode="decimal" value=${e.amountTxt} onInput=${ev => set({ amountTxt: ev.target.value })} placeholder="0,00" autofocus />
-        <${Select} class="input" value=${e.currency} onChange=${ev => set({ currency: ev.target.value })} aria-label="Moneda">${CURRENCIES.map(c => html`<option>${c}</option>`)}</${Select}></div></${Field}>
+        <${Select} class="input" value=${e.currency} onChange=${ev => set({ currency: ev.target.value })} aria-label="Moneda">${CURRENCIES.map(c => html`<option value=${c}>${c}</option>`)}</${Select}></div></${Field}>
       <${Field} label="Concepto"><input class="input" value=${e.text} onInput=${ev => set({ text: ev.target.value })} placeholder="Ej.: Cena en el puerto" /></${Field}>
       <div class="field"><span class="field-label">Categoría</span>
         <div class="cat-pick">${Object.entries(EXPENSE_CATS).map(([k, v]) => html`<button type="button" class=${`cat-btn ${e.category === k ? 'is-active' : ''}`} onClick=${() => set({ category: k })}><${Icon} name=${v.icon} size=${18} /><span>${v.label}</span></button>`)}</div></div>
       <div class="field-row">
         <${Field} label="Fecha"><input class="input" type="date" value=${e.date} onInput=${ev => set({ date: ev.target.value })} /></${Field}>
-        ${trip.travelers.length > 1 && html`<${Field} label="Pagó"><${Select} class="input" value=${e.paidBy} onChange=${ev => set({ paidBy: ev.target.value })}>${trip.travelers.map(p => html`<option>${p}</option>`)}</${Select}></${Field}>`}
+        ${trip.travelers.length > 1 && html`<${Field} label="Pagó"><${Select} class="input" value=${e.paidBy} onChange=${ev => set({ paidBy: ev.target.value })}>${trip.travelers.map(p => html`<option value=${p}>${p}</option>`)}</${Select}></${Field}>`}
       </div>
     </div>
   </${Modal}>`;
@@ -46,7 +46,7 @@ function BudgetForm({ close, trip }) {
     footer=${html`<${Btn} kind="primary" type="submit">Guardar</${Btn}>`}>
     <${Field} label="¿Cuánto quieres gastar como mucho?" hint="Es la moneda principal del viaje: los gastos nuevos la usarán por defecto.">
       <div class="money-input"><input class="input input-lg" inputmode="decimal" value=${amt} onInput=${e => setAmt(e.target.value)} placeholder="0" autofocus />
-      <${Select} class="input" value=${cur} onChange=${e => setCur(e.target.value)}>${CURRENCIES.map(c => html`<option>${c}</option>`)}</${Select}></div></${Field}>
+      <${Select} class="input" value=${cur} onChange=${e => setCur(e.target.value)}>${CURRENCIES.map(c => html`<option value=${c}>${c}</option>`)}</${Select}></div></${Field}>
   </${Modal}>`;
 }
 

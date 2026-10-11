@@ -48,8 +48,9 @@ jobs:
           path: dist/*.exe
           if-no-files-found: error
 
+      # La versión descargable (Releases) se publica al lanzar el flujo a mano desde Actions.
       - name: Publicar versión descargable
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
