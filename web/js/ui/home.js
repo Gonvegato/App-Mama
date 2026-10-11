@@ -49,9 +49,22 @@ function NowCard({ trip }) {
   </section>`;
 }
 
+// Cosas que faltan por preparar (solo a partir de lo que hay guardado en el viaje).
+function pendingTasks(trip, st) {
+  const out = [];
+  const has = k => trip.reservations.some(r => r.kind === k);
+  const transport = trip.reservations.some(r => ['flight', 'train', 'bus', 'ferry', 'car'].includes(r.kind));
+  if (!transport) out.push({ text: 'Añadir cómo vas a ir (vuelo, tren…)', tab: 'reservas' });
+  if (!has('hotel') && trip.startDate !== trip.endDate) out.push({ text: 'Añadir el alojamiento', tab: 'reservas' });
+  if (has('flight') && !trip.docs.some(d => d.kind === 'billete')) out.push({ text: 'Subir las tarjetas de embarque o billetes', tab: 'documentos' });
+  if (st.days <= 7 && (!trip.packing.length || trip.packing.some(p => !p.done))) out.push({ text: trip.packing.length ? `Terminar la maleta (faltan ${trip.packing.filter(p => !p.done).length})` : 'Preparar la lista de la maleta', tab: 'maleta' });
+  return out.slice(0, 4);
+}
+
 function NextCard({ trip }) {
   const st = tripStatus(trip);
   const s = tripStats(trip);
+  const todo = st.days <= 30 ? pendingTasks(trip, st) : [];
   return html`<section class="feature">
     <${Cover} trip=${trip} class="feature-cover">
       <div class="feature-overlay">
@@ -72,6 +85,10 @@ function NextCard({ trip }) {
         <li><${Icon} name="suitcase" size=${17} /><span>${s.packing ? `Maleta: ${s.packed} de ${s.packing}` : 'Maleta sin preparar'}</span>
           ${s.packing > 0 && html`<${Progress} value=${s.packed} max=${s.packing} label="Maleta" />`}</li>
       </ul>
+      ${todo.length > 0 && html`<div class="todo">
+        <span class="eyebrow">Por preparar</span>
+        <ul>${todo.map(t => html`<li><a href=${`#${tripPath(trip.id, t.tab)}`}><${Icon} name="circle" size=${14} /><span>${t.text}</span><${Icon} name="chevron-right" size=${14} /></a></li>`)}</ul>
+      </div>`}
       <div class="feature-actions"><${Btn} kind="primary" icon="arrow-right" onClick=${() => go(tripPath(trip.id))}>Abrir el viaje</${Btn}></div>
     </div>
   </section>`;

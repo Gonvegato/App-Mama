@@ -874,3 +874,8 @@ html.has-modal .main { overflow: hidden; }
 .auth-art { display: flex; align-items: flex-end; }
 .auth-quote { position: relative; z-index: 1; margin: 0 0 3.2rem 3.2rem; color: #fff; font-size: clamp(1.6rem, 2.6vw, 2.4rem); font-style: italic; font-weight: 380; line-height: 1.2; max-width: 22rem; text-shadow: 0 2px 18px rgba(0,0,0,.18); }
 .auth .form-grid + p { margin-top: 1rem; }
+.todo ul { list-style: none; padding: 0; margin: .4rem 0 0; display: grid; gap: .15rem; }
+.todo a { display: flex; align-items: center; gap: .55rem; padding: .35rem .4rem; margin: 0 -.4rem; border-radius: 8px; color: var(--ink); text-decoration: none; }
+.todo a:hover { background: var(--hover); }
+.todo a .icon:first-child { color: var(--accent); }
+.todo a .icon:last-child { margin-left: auto; color: var(--ink-3); }
