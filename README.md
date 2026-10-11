@@ -44,8 +44,8 @@ Con eso la app ya sabe a qué base de datos conectarse y tu madre solo tendrá q
 ### 3. En el ordenador de tu madre
 
 1. Ve a **Releases** (columna derecha del repositorio) y descarga el `.exe` más reciente.
-2. Ábrelo. Como el programa no está firmado digitalmente, Windows puede mostrar «Windows protegió su PC»: **Más información → Ejecutar de todas formas**.
-3. Se crea un acceso directo «Cuaderno de viajes» en el escritorio. Entra con su correo y contraseña.
+2. Ábrelo: se instala solo, sin preguntas, y se abre. Como el programa no está firmado digitalmente, Windows puede mostrar antes «Windows protegió su PC»: **Más información → Ejecutar de todas formas**.
+3. Queda un acceso directo «Cuaderno de viajes» en el escritorio y en el menú Inicio. Entra con su correo y contraseña.
 
 Para actualizar el programa en el futuro: descargar el `.exe` nuevo e instalarlo encima (los datos están en la nube, no se pierden).
 

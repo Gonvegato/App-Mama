@@ -23,27 +23,39 @@
     "appId": "es.gonzalo.cuadernodeviajes",
     "productName": "Cuaderno de viajes",
     "copyright": "Hecho con cariño para mamá",
-    "directories": { "output": "dist", "buildResources": "build" },
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
     "files": [
       "desktop/**/*",
       "web/**/*",
       "package.json"
     ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.png",
       "artifactName": "Cuaderno-de-viajes-${version}-instalador.${ext}"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "Cuaderno de viajes",
       "language": "3082",
-      "installerLanguages": ["es_ES"],
-      "runAfterFinish": true
+      "installerLanguages": [
+        "es_ES"
+      ],
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
     }
   }
 }
