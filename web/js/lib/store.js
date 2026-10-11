@@ -163,16 +163,24 @@ function clearPending(id, trip) {
   setState({ pending: Object.keys(p).length });
 }
 
+const saving = new Set();  // viajes que se están guardando ahora mismo
+const again = new Set();   // viajes que han cambiado mientras se guardaban
+let opSeq = 0;
+
 async function saveNow(id, attempt = 0) {
+  if (saving.has(id)) { again.add(id); return; }
   const trip = state.trips.find(t => t.id === id);
   if (!trip) return;
+  saving.add(id);
   queuePending(id, trip);
   setState(s => ({ syncing: s.syncing + 1 }));
-  const nOps = (ops.get(id) || []).length;
+  const lastSeq = opSeq;
   try {
-    const saved = await backend.saveTrip(trip, base.get(id));
+    const myOps = ops.get(id) || [];
+    // Sin cambios que reaplicar (p. ej. tras reiniciar la app), se guarda tal cual.
+    const saved = await backend.saveTrip(trip, myOps.length ? base.get(id) : undefined);
     base.set(id, saved.updatedAt);
-    ops.set(id, (ops.get(id) || []).slice(nOps));
+    ops.set(id, (ops.get(id) || []).filter(o => o.seq > lastSeq));
     clearPending(id, trip);
     // Conserva cambios hechos mientras se guardaba.
     const cur = state.trips.find(t => t.id === id);
@@ -181,6 +189,8 @@ async function saveNow(id, attempt = 0) {
   } catch (e) {
     if (e.conflict && attempt < 3) {
       mergeConflict(id, e.conflict);
+      saving.delete(id);
+      setState(s => ({ syncing: Math.max(0, s.syncing - 1) }));
       await saveNow(id, attempt + 1);
       return;
     }
@@ -190,14 +200,18 @@ async function saveNow(id, attempt = 0) {
       toast(`No se pudo guardar: ${niceError(e)}`, 'error');
     }
   } finally {
-    setState(s => ({ syncing: Math.max(0, s.syncing - 1) }));
+    if (saving.has(id)) {
+      saving.delete(id);
+      setState(s => ({ syncing: Math.max(0, s.syncing - 1) }));
+    }
   }
+  if (again.has(id)) { again.delete(id); return saveNow(id); }
 }
 
 // Hay una versión más nueva en el servidor: se aplican encima los cambios hechos aquí.
 function mergeConflict(id, server) {
   let draft = normalizeTrip(clone(server));
-  for (const fn of ops.get(id) || []) {
+  for (const { fn } of ops.get(id) || []) {
     try { const r = fn(draft); if (r) draft = normalizeTrip(r); } catch { /* cambio que ya no aplica */ }
   }
   draft.updatedAt = new Date().toISOString();
@@ -210,8 +224,12 @@ export async function flushPending() {
   const p = LS.get('cv-pending', {});
   for (const [id, t] of Object.entries(p)) {
     try {
-      if (t === null) { await backend.deleteTrip(id); clearPending(id); }
-      else { await backend.saveTrip(t); clearPending(id, t); }
+      if (t === null) { await backend.deleteTrip(id); clearPending(id); continue; }
+      // Si el viaje está en memoria se guarda la versión actual (con su control de cambios).
+      if (state.trips.some(x => x.id === id)) { await saveNow(id); if (LS.get('cv-pending', {})[id]) return; continue; }
+      const saved = await backend.saveTrip(t);
+      base.set(id, saved.updatedAt);
+      clearPending(id, t);
     } catch { return; }
   }
   setState({ online: true });
@@ -259,7 +277,7 @@ export function updateTrip(id, fn) {
   const draft = clone(cur);
   const r = fn(draft);
   if (!ops.has(id)) ops.set(id, []);
-  ops.get(id).push(fn);
+  ops.get(id).push({ seq: ++opSeq, fn });
   const next = normalizeTrip(r || draft);
   next.updatedAt = new Date().toISOString();
   replaceTrip(next);
