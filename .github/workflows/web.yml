@@ -1,0 +1,48 @@
+name: Web para el móvil
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', 'tools/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Configuración de la nube
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+        run: node tools/write-config.mjs
+
+      - name: Versión de la caché sin conexión
+        run: sed -i "s/const VERSION = 'cv-[^']*';/const VERSION = 'cv-${GITHUB_SHA::8}';/" web/sw.js
+
+      # Requisito previo (una sola vez): Settings → Pages → Source: «GitHub Actions».
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: web
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

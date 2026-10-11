@@ -1,0 +1,61 @@
+name: Programa de Windows
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', 'desktop/**', 'build/**', 'package.json', 'package-lock.json', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configuración de la nube
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+        run: node tools/write-config.mjs
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas
+        run: npm test
+
+      - name: Crear el instalador (.exe)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: Guardar el instalador como artefacto
+        uses: actions/upload-artifact@v7
+        with:
+          name: Cuaderno-de-viajes-Windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+      - name: Publicar versión descargable
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v1.0.${{ github.run_number }}"
+          gh release create "$TAG" dist/*.exe \
+            --title "Cuaderno de viajes $TAG" \
+            --notes "Instalador para Windows. Descarga el archivo .exe, ábrelo y sigue los pasos. Si Windows muestra «Windows protegió su PC», pulsa «Más información» → «Ejecutar de todas formas» (el programa no está firmado digitalmente)." \
+            --latest

@@ -1,0 +1,29 @@
+name: Mantener activa la base de datos
+
+# El plan gratuito de Supabase pausa el proyecto tras 7 días sin uso.
+# Esta tarea hace una consulta mínima cada 3 días para evitarlo.
+on:
+  schedule:
+    - cron: '23 7 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latido:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar la base de datos
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "Faltan las variables SUPABASE_URL y SUPABASE_KEY del repositorio."; exit 1
+          fi
+          code=$(curl -s -o respuesta.json -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/latido?select=id" \
+            -H "apikey: $SUPABASE_KEY")
+          cat respuesta.json; echo
+          if [ "$code" != "200" ]; then echo "La base de datos respondió $code"; exit 1; fi
