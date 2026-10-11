@@ -38,8 +38,8 @@ const LABELS = {
   other: { title: 'Qué es', provider: 'Empresa', start: 'Cuándo', end: 'Hasta (opcional)', location: 'Dónde' },
 };
 
-export function ReservationForm({ close, trip, res, kind: kindProp }) {
-  const editing = !!res;
+export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
+  const editing = !!res && !isNew;
   const [r, setR] = useState(() => res ? { ...res, docIds: [...(res.docIds || [])] } : newReservation(kindProp || 'flight'));
   const [price, setPrice] = useState(() => (res?.price?.amount ? String(res.price.amount).replace('.', ',') : ''));
   const [currency, setCurrency] = useState(res?.price?.currency || trip.budget?.currency || 'EUR');

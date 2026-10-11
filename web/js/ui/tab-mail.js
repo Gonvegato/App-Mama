@@ -4,6 +4,8 @@ import { Btn, Icon, IconBtn, Empty, Modal, openModal, confirm, Spinner, Toggle, 
 import { gmailConfigured, gmailSearch, gmailGet, gmailAttachment, suggestedQuery, quickQueries } from '../lib/gmail.js';
 import { updateTrip, uploadFile, removeFiles, fileBlob, toast, useStore, offlineFiles } from '../lib/store.js';
 import { guessDocKind } from './tab-docs.js';
+import { KindPicker, ReservationForm } from './res-form.js';
+import { newReservation } from '../lib/model.js';
 import { sid, fmtSize, base64ToBlob, cx } from '../lib/util.js';
 import { go } from '../lib/router.js';
 
@@ -43,6 +45,13 @@ function MailReader({ close, trip, email, preview, onSave }) {
   return html`<${Modal} title=${m.subject} close=${close} size="xl" class="viewer mail-reader"
     footer=${preview ? html`<${Btn} kind="ghost" onClick=${close}>Cerrar</${Btn}><${Btn} kind="primary" icon="paperclip" onClick=${() => { close(); onSave?.(); }}>Guardar en el viaje</${Btn}>`
       : html`<${Btn} kind="ghost" icon="trash" onClick=${async () => { if (await removeEmail(trip, email)) close(); }}>Quitar del viaje</${Btn}>
+        <${Btn} icon="ticket" onClick=${async () => {
+          close();
+          const kind = await openModal(KindPicker);
+          if (!kind) return;
+          const docIds = trip.docs.filter(d => d.fromEmail === email.id).map(d => d.id);
+          openModal(ReservationForm, { trip, kind, res: { ...newReservation(kind), docIds, notes: `Del correo «${email.subject}» (${sender(email.from)}, ${fmtWhen(email.date)}).` }, isNew: true });
+        }}>Crear reserva con este correo</${Btn}>
         ${email.gmailId && html`<a class="btn btn-default" href=${`https://mail.google.com/mail/u/0/#all/${email.threadId || email.gmailId}`} target="_blank" rel="noopener"><${Icon} name="external" size=${18} /><span>Abrir en Gmail</span></a>`}`}>
     <div class="mail-meta">
       <span><b>${sender(m.from)}</b> <small>${m.from?.includes('<') ? m.from.slice(m.from.indexOf('<')) : ''}</small></span>

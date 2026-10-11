@@ -372,7 +372,7 @@ export async function saveSettings(patch) {
 export const toasts = { list: [], listeners: new Set() };
 export function toast(text, kind = 'info', opts = {}) {
   const t = { id: sid(), text, kind, action: opts.action, actionLabel: opts.actionLabel };
-  toasts.list = [...toasts.list, t];
+  toasts.list = [...toasts.list.filter(x => x.text !== text), t].slice(-3);
   toasts.listeners.forEach(l => l());
   setTimeout(() => dismissToast(t.id), opts.ms || (kind === 'error' ? 7000 : 3500));
 }

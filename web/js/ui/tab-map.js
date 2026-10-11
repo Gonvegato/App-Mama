@@ -6,8 +6,8 @@ import { openReservation } from './tab-bookings.js';
 import { ICONS } from '../lib/icon-data.js';
 import { loadLeaflet, tileLayer, currentMapStyle, MAP_STYLES } from '../lib/leaflet-loader.js';
 import { PLACE_CATS, RES_KINDS, newPlace, resTitle, isTransport } from '../lib/model.js';
-import { updateTrip, toast, useStore, setPrefs } from '../lib/store.js';
-import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, googleDirectionsUrl, appleDirectionsUrl, isApple } from '../lib/geo.js';
+import { updateTrip, toast, useStore, setPrefs, getTrip } from '../lib/store.js';
+import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, googleDirectionsUrl, appleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
 import { eachDay, fmtDate, cx } from '../lib/util.js';
 
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -137,13 +137,37 @@ function fit(map, group, trip, opts = {}) {
   else map.setView([40.4, -3.7], 4);
 }
 
+// Puntos en los que centrar la vista inicial: lo que hay en el destino
+// (sin el aeropuerto de salida, que alejaría demasiado el mapa).
+function focusPoints(trip, data) {
+  const pts = [];
+  for (const p of data.places) pts.push([p.lat, p.lng]);
+  for (const r of data.res) pts.push([r.at.lat, r.at.lng]);
+  for (const r of data.routes) for (const q of r.points.filter((_, i) => i % 10 === 0)) pts.push(q);
+  const c = trip.center || (data.places[0] ? { lat: data.places[0].lat, lng: data.places[0].lng } : null);
+  if (!c) return pts;
+  const near = pts.filter(([lat, lng]) => distanceKm(c, { lat, lng }) < 600);
+  return near.length ? near : pts;
+}
+
+function fitPoints(map, pts, trip, opts = {}) {
+  const L = window.L;
+  if (!pts.length) return fit(map, L.featureGroup(), trip, opts);
+  const b = L.latLngBounds(pts);
+  const off = opts.padding ? 0 : panelOffset(map);
+  const pad = opts.padding ? { padding: opts.padding } : { paddingTopLeft: [off + 40, 60], paddingBottomRight: [40, 40] };
+  if (b.getNorthEast().equals(b.getSouthWest())) focusOn(map, b.getCenter(), 14);
+  else map.fitBounds(b, { ...pad, maxZoom: 15, animate: opts.animate });
+}
+
 export function MiniMap({ trip, onOpen }) {
   const ref = useRef();
   const map = useLeafletMap(ref, { interactive: false });
   useEffect(() => {
     if (!map) return;
-    const g = drawLayers(map, trip, collect(trip, { cats: new Set(), day: '' }), {});
-    fit(map, g, trip, { padding: [24, 24] });
+    const data = collect(trip, { cats: new Set(), day: '' });
+    const g = drawLayers(map, trip, data, {});
+    fitPoints(map, focusPoints(trip, data), trip, { padding: [24, 24] });
     return () => g.remove();
   }, [map, trip]);
   return html`<div class="minimap" ref=${ref} onClick=${onOpen} role="button" aria-label="Abrir mapa" tabIndex="0"></div>`;
@@ -267,7 +291,7 @@ export function MapTab({ trip, route }) {
     if (!map) return;
     layerRef.current?.remove();
     layerRef.current = drawLayers(map, trip, data, { selected: sel, onSelect: setSel, labels: true });
-    if (!fitted.current) { fitted.current = true; fit(map, layerRef.current, trip); }
+    if (!fitted.current) { fitted.current = true; fitPoints(map, focusPoints(trip, data), trip); }
   }, [map, data, sel]);
 
   // Enfoca un elemento si la ruta lo indica (#/viaje/id/mapa/p-xxx)
@@ -337,7 +361,7 @@ export function MapTab({ trip, route }) {
     }, () => toast('No se pudo obtener tu ubicación. Revisa los permisos.', 'error'), { enableHighAccuracy: true, timeout: 12000 });
   };
 
-  const importNow = async () => { if (await openModal(ImportModal, { trip })) { setCats(new Set()); setDay(''); setSel(null); setTimeout(() => layerRef.current && fit(map, layerRef.current, trip, { animate: true }), 120); } };
+  const importNow = async () => { if (await openModal(ImportModal, { trip })) { setCats(new Set()); setDay(''); setSel(null); setTimeout(() => layerRef.current && fitPoints(map, focusPoints(trip, collect(getTrip(trip.id) || trip, { cats: new Set(), day: '' })), trip, { animate: true }), 120); } };
 
   const days = eachDay(trip.startDate, trip.endDate);
   const catCounts = {};
@@ -353,7 +377,8 @@ export function MapTab({ trip, route }) {
       <${Btn} size="sm" kind=${adding ? 'primary' : 'default'} icon="crosshair" onClick=${() => setAdding(a => !a)} aria-label="Añadir punto">Añadir punto</${Btn}>
       <${Btn} size="sm" icon="import" onClick=${importNow} aria-label="Importar">Importar</${Btn}>
       <${Menu} items=${[
-        { icon: 'maximize', label: 'Ver todo', onClick: () => layerRef.current && fit(map, layerRef.current, trip, { animate: true }) },
+        { icon: 'maximize', label: 'Centrar en el destino', onClick: () => fitPoints(map, focusPoints(trip, data), trip, { animate: true }) },
+        { icon: 'globe', label: 'Ver todo (con vuelos)', onClick: () => layerRef.current && fit(map, layerRef.current, trip, { animate: true }) },
         { icon: 'navigation', label: 'Mi ubicación', onClick: locate },
         '-',
         ...Object.entries({ auto: 'Estilo automático', ...Object.fromEntries(Object.entries(MAP_STYLES).map(([k, v]) => [k, `Estilo: ${v.label}`])) })
