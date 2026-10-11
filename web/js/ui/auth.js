@@ -9,7 +9,7 @@ function Frame({ children, wide }) {
       <div class="auth-brand"><span class="brand-mark"><${Icon} name="compass" size=${22} /></span><span class="brand-name">Cuaderno <em>de viajes</em></span></div>
       ${children}
     </div>
-    <div class="auth-art" aria-hidden="true"></div>
+    <div class="auth-art" aria-hidden="true"><p class="auth-quote">Todos tus viajes, en un solo cuaderno.</p></div>
   </div>`;
 }
 

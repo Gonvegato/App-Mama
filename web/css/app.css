@@ -804,8 +804,8 @@ html.has-modal .main { overflow: hidden; }
   background: linear-gradient(150deg, #d9c3a5 0%, #a8805c 55%, #6e4e36 100%);
   position: relative; overflow: hidden;
 }
-.auth-art::after { content: ''; position: absolute; inset: 0; opacity: .3; mix-blend-mode: soft-light;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'><g fill='none' stroke='white' stroke-width='1.2'><path d='M-20 60c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 90c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 120c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 150c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 180c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 210c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 30c40-30 80-30 120 0s80 30 160 0'/><circle cx='180' cy='70' r='22'/><circle cx='180' cy='70' r='36'/><circle cx='180' cy='70' r='50'/></g></svg>"); background-size: 300px; }
+.auth-art::after { content: ''; position: absolute; inset: 0; opacity: .16; mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'><g fill='none' stroke='white' stroke-width='1.2'><path d='M-20 60c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 90c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 120c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 150c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 180c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 210c40-30 80-30 120 0s80 30 160 0'/><path d='M-20 30c40-30 80-30 120 0s80 30 160 0'/><circle cx='180' cy='70' r='22'/><circle cx='180' cy='70' r='36'/><circle cx='180' cy='70' r='50'/></g></svg>"); background-size: 460px; }
 [data-dark='1'] .auth-art { background: linear-gradient(150deg, #4a3a2a 0%, #2a221a 60%, #17181b 100%); }
 .choice-grid { display: grid; gap: .8rem; margin-top: 1.6rem; }
 .choice { display: grid; grid-template-columns: auto 1fr; gap: .2rem .9rem; text-align: left; padding: 1.1rem 1.2rem; border-radius: var(--radius); border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; transition: border-color .15s, transform .15s, box-shadow .15s; }
@@ -870,3 +870,7 @@ html.has-modal .main { overflow: hidden; }
 @media (max-width: 860px) { .page { padding-top: calc(1.4rem + env(safe-area-inset-top)); } }
 .help-list { margin: 0; padding-left: 1.2rem; display: grid; gap: .55rem; }
 .help-list li::marker { color: var(--accent); }
+
+.auth-art { display: flex; align-items: flex-end; }
+.auth-quote { position: relative; z-index: 1; margin: 0 0 3.2rem 3.2rem; color: #fff; font-size: clamp(1.6rem, 2.6vw, 2.4rem); font-style: italic; font-weight: 380; line-height: 1.2; max-width: 22rem; text-shadow: 0 2px 18px rgba(0,0,0,.18); }
+.auth .form-grid + p { margin-top: 1rem; }
