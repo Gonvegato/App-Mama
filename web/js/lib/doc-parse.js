@@ -86,10 +86,13 @@ export function guessReservationKind(text) {
   return null;
 }
 
-// Limpia el nombre del alojamiento: quita «el/la», coletillas como «está confirmada» y signos sueltos.
+// Limpia el nombre del alojamiento: quita «el/la», prefijos y coletillas de confirmación y signos sueltos.
 function cleanName(s) {
   if (!s) return s;
   let n = s.replace(/\s{2,}/g, ' ').trim();
+  // Prefijo «Confirmación de (tu) reserva en/de/: …» → se queda con lo de después.
+  n = n.replace(/^(?:la\s+)?confirmaci[oó]n\s+de\s+(?:tu\s+)?reserva\s*(?:en|de|:)?\s*/i, '');
+  n = n.replace(/^confirmation of (?:your )?(?:booking|reservation)\s*(?:at|for|:)?\s*/i, '');
   // Coletilla «… está confirmada / is confirmed». Los PDF a veces parten las palabras
   // («con fi rmada»), así que se mira el final sin espacios para reconocerla.
   const tail = /\s+(est[aá]|is|was|has been|ya)(?=\s|$)([\s\S]*)$/i.exec(n);
@@ -97,6 +100,18 @@ function cleanName(s) {
   n = n.replace(/[\s,.;:–-]+$/, '');
   n = n.replace(/^(el|la|los|las|the)\s+/i, '');
   return n.trim();
+}
+
+// ¿Es un título basura (una frase de confirmación/reserva, no el nombre real del sitio)?
+const LODGING = /\b(hotel|hostal|hostel|apartament|apartamento|aparthotel|guest\s?house|casa|villa|resort|pensi[oó]n|albergue|lodge|suites?|parador|caser[ií]o|agroturismo|b&b)\b/i;
+function looksLikeJunkName(s) {
+  const n = (s || '').trim();
+  if (n.length < 3) return true;
+  if (LODGING.test(n)) return false;   // si nombra un tipo de alojamiento, lo damos por bueno
+  // Empieza por (o es solo) palabras de reserva/confirmación/saludo sin nombre real.
+  if (/^(confirmaci[oó]n|confirmation|reserva|booking|reservation|n[uú]mero|number|localizador|gracias|thank you|hola|hello|tu reserva|your (booking|reservation))\b/i.test(n)) return true;
+  if (/^(de|tu|la|el|los|las|your|the|of)(\s+(de|tu|la|el|los|las|your|the|of|reserva|confirmaci[oó]n|booking|reservation|confirmad[oa]|confirmed))*$/i.test(n)) return true;
+  return false;
 }
 
 // Analiza el texto de una reserva y devuelve los campos que encuentra con seguridad.
@@ -158,11 +173,15 @@ export function parseReservationDoc(text) {
   // Nombre del alojamiento: la línea cercana a «tu reserva en …» o la primera con palabra de alojamiento.
   const near = t.match(/(?:tu reserva en|your (?:booking|reservation) (?:at|for)|reserva en|estancia en)\s*[:]?\s*([^\n]{3,70})/i);
   if (near) out.name = cleanName(near[1]);
-  // Si el nombre sigue sin salir o quedó sospechoso, se busca la primera línea con palabra de alojamiento.
-  if (!out.name || /confirmad|reserva/i.test(out.name)) {
+  // Si el nombre sigue sin salir o es basura (frase de confirmación/reserva), se busca
+  // la primera línea con palabra de alojamiento.
+  if (!out.name || looksLikeJunkName(out.name)) {
+    out.name = undefined;
     for (const line of t.split('\n').map(s => s.trim()).slice(0, 30)) {
-      if (line.length >= 4 && line.length <= 70 && /\b(hotel|hostal|hostel|apartament|apartment|apartamento|aparthotel|guesthouse|casa|villa|resort|b&b|bed (and|&) breakfast|pensi[oó]n|albergue|lodge|suites?)\b/i.test(line) && !/booking\.com|airbnb|política|policy|cancel|confirmad/i.test(line)) { out.name = cleanName(line); break; }
+      if (line.length >= 4 && line.length <= 70 && LODGING.test(line) && !/booking\.com|airbnb|política|policy|cancel|confirmad/i.test(line)) { out.name = cleanName(line); break; }
     }
   }
+  // Mejor sin nombre que con basura: si lo que quedó sigue siendo una frase de reserva, se descarta.
+  if (out.name && looksLikeJunkName(out.name)) out.name = undefined;
   return out;
 }

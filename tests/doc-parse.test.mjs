@@ -109,3 +109,11 @@ test('limpia el nombre aunque el PDF parta las palabras («con fi rmada»)', () 
   const r = parseReservationDoc('Tu reserva en el HOTEL RURAL BASQUE IRATI está con fi rmada\nBooking.com\nEntrada: 23 de octubre de 2026\nSalida: 25 de octubre de 2026');
   assert.equal(r.name, 'HOTEL RURAL BASQUE IRATI');
 });
+
+test('no mete frases de confirmación/reserva como nombre del alojamiento', () => {
+  // Sin nombre real -> mejor sin nombre que con basura.
+  assert.equal(parseReservationDoc('Confirmación de tu reserva\nNúmero de confirmación: 12345\nEntrada: 15/10/2026\nSalida: 17/10/2026').name, undefined);
+  assert.equal(parseReservationDoc('Gracias. Reserva confirmada. Booking.com\nEntrada: 15/10/2026\nSalida: 17/10/2026').name, undefined);
+  // Con nombre real tras la frase -> se queda con el nombre.
+  assert.equal(parseReservationDoc('Confirmación de reserva en Hotel Pepe\nEntrada: 15/10/2026').name, 'Hotel Pepe');
+});
