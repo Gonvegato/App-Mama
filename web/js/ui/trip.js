@@ -7,6 +7,7 @@ import { TripForm } from './trip-form.js';
 import { SummaryTab } from './tab-summary.js';
 import { ItineraryTab } from './tab-itinerary.js';
 import { MapTab } from './tab-map.js';
+import { RoutesTab } from './tab-routes.js';
 import { BookingsTab } from './tab-bookings.js';
 import { DocsTab } from './tab-docs.js';
 import { MailTab } from './tab-mail.js';
@@ -21,6 +22,7 @@ export const TABS = [
   { id: 'resumen', label: 'Resumen', icon: 'compass', C: SummaryTab },
   { id: 'itinerario', label: 'Itinerario', icon: 'calendar', C: ItineraryTab },
   { id: 'mapa', label: 'Mapa', icon: 'map', C: MapTab, full: true },
+  { id: 'rutas', label: 'Rutas', icon: 'route', C: RoutesTab, count: t => t.routes.filter(r => r.points?.length > 1).length },
   { id: 'reservas', label: 'Reservas', icon: 'ticket', C: BookingsTab, count: t => t.reservations.length },
   { id: 'documentos', label: 'Documentos', icon: 'file', C: DocsTab, count: t => t.docs.length },
   { id: 'correos', label: 'Correos', icon: 'mail', C: MailTab, count: t => t.emails.length },

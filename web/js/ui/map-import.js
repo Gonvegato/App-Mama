@@ -136,7 +136,10 @@ export function ImportModal({ close, trip }) {
     }
     if (!places.length && !routes.length) { toast('No hay nada marcado para añadir.', 'error'); return; }
     updateTrip(trip.id, t => { t.places.push(...places); t.routes.push(...routes); });
-    toast(`Añadido${places.length === 1 ? '' : 's'} ${plural(places.length, 'lugar', 'lugares')}${routes.length ? ` y ${plural(routes.length, 'ruta', 'rutas')}` : ''}`, 'ok');
+    const parts = [];
+    if (places.length) parts.push(plural(places.length, 'lugar', 'lugares'));
+    if (routes.length) parts.push(plural(routes.length, 'ruta', 'rutas'));
+    toast(`Añadido: ${parts.join(' y ')}`, 'ok');
     close(true);
   };
 

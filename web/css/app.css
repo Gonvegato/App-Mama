@@ -932,3 +932,38 @@ html.has-modal .main { overflow: hidden; }
 .usb-progress i { color: var(--ink-2); }
 .pulse { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
+
+/* ---------- Rutas ---------- */
+.routes-tab .toolbar-left { max-width: 46ch; }
+.route-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.route-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.1rem; position: relative; overflow: hidden; }
+.route-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--kc); }
+.route-head { display: flex; gap: .7rem; align-items: center; margin-bottom: .8rem; }
+.route-ico { width: 2.3rem; height: 2.3rem; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--kc); background: color-mix(in srgb, var(--kc) 14%, var(--surface)); }
+.route-text h3 { margin: 0; font-size: 1.08rem; }
+.route-text small { color: var(--ink-2); }
+.routes-tip { display: flex; align-items: flex-start; gap: .4rem; margin-top: 1.4rem; }
+.routes-tip .icon { flex: none; margin-top: .1rem; }
+
+/* ---------- Seguir una ruta ---------- */
+.follow { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; }
+.follow-map { position: absolute; inset: 0; z-index: 0; }
+.follow-top { position: absolute; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; gap: .6rem; padding: .7rem .8rem; background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 88%, transparent), transparent); pointer-events: none; }
+.follow-top > * { pointer-events: auto; }
+.follow-exit { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 50%; }
+.follow-name { display: inline-flex; align-items: center; gap: .4rem; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 999px; padding: .4rem .9rem; font-weight: 560; max-width: calc(100% - 4rem); }
+.follow-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.follow-msg { position: absolute; top: 3.8rem; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: .5rem; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 12px; padding: .6rem .9rem; max-width: min(92%, 32rem); color: var(--ink-2); font-size: .95rem; }
+.follow-recenter { position: absolute; right: .8rem; bottom: 8.2rem; z-index: 10; display: inline-flex; align-items: center; gap: .4rem; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 999px; padding: .55rem .9rem; font: inherit; font-weight: 560; color: var(--ink); cursor: pointer; }
+.follow-stats { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--surface); border-top: 1px solid var(--line); padding: .7rem .9rem calc(.7rem + env(safe-area-inset-bottom)); box-shadow: 0 -6px 18px -12px rgba(0,0,0,.4); }
+.fs-bar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink-3) 25%, transparent); overflow: hidden; margin-bottom: .7rem; }
+.fs-fill { display: block; height: 100%; background: var(--c); border-radius: 3px; transition: width .5s var(--ease); }
+.fs-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; text-align: center; }
+.fs-cell { display: flex; flex-direction: column; gap: .1rem; }
+.fs-cell small { color: var(--ink-2); font-size: .78rem; }
+.fs-cell b { font-size: 1.12rem; font-variant-numeric: tabular-nums; }
+.fs-cell.fs-warn b, .fs-cell.fs-warn small { color: #b4502f; }
+.fs-off { display: flex; align-items: center; justify-content: center; gap: .35rem; margin: .6rem 0 0; color: #b4502f; font-size: .9rem; }
+.me-dot { animation: me-pulse 1.8s ease-in-out infinite; }
+@keyframes me-pulse { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .45; } }
+@media (max-width: 560px) { .route-list { grid-template-columns: 1fr; } }

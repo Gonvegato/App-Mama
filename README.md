@@ -109,6 +109,19 @@ En **Mapa → Importar** hay una pestaña «Cómo exportar» con estas mismas in
 - **Apple Maps:** Compartir → Copiar en cada lugar o ruta y pegar los enlaces. **Apple Maps no permite exportar guías completas**, así que hay que compartir los lugares uno a uno.
 - **GPX** (Komoot, Wikiloc, relojes…) y **GeoJSON** también se importan.
 
+En el **Mapa** aparece todo lo que tenga ubicación: los lugares, el **alojamiento** y las reservas (hoteles, restaurantes, actividades) que se hayan buscado al crearlas, los vuelos y trayectos, y las rutas. Un plan escrito a mano en el itinerario no sale en el mapa porque no tiene un sitio concreto; para que salga, añádelo como lugar o búscale la dirección en la reserva.
+
+---
+
+## Rutas (seguir un recorrido)
+
+La pestaña **Rutas** sirve para importar recorridos (un sendero, una ruta en coche o a pie) y **seguirlos viendo tu posición encima**.
+
+- **Importar:** pulsa «Importar ruta» y elige un archivo **GPX** (Komoot, Wikiloc, Strava, un reloj…), un **KML** de Google My Maps, o pega una ruta de Google o Apple Maps.
+- **Seguir:** pulsa «Seguir» en una ruta. Se abre un mapa a pantalla completa con la línea del recorrido y un punto azul con tu ubicación en vivo. Abajo se ve cuánto queda, el porcentaje hecho y, si te sales, a qué distancia estás de la línea. El alojamiento y los lugares del viaje salen tenues como referencia.
+- Funciona **sin conexión**: los puntos de la ruta están guardados y el mapa usa los trozos que ya se hayan visto. Hace falta dar permiso de **ubicación** y conviene llevar el móvil cargado (la pantalla se mantiene encendida mientras sigues).
+- Para **indicaciones calle a calle** (voz, giros), usa «Abrir en Maps»: eso abre Google o Apple Maps, que es lo que sabe navegar de verdad.
+
 ---
 
 ## Límites y decisiones honestas
