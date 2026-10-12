@@ -113,4 +113,4 @@ npm start              # el programa de escritorio
 - `backend/` — script SQL de Supabase y ayudante de Gmail.
 - `.github/workflows/` — instalador de Windows, publicación de la web y mantenimiento.
 
-Créditos de datos y librerías: mapas © colaboradores de OpenStreetMap y CARTO; búsqueda Nominatim y Photon; tiempo Open-Meteo (CC BY 4.0); aeropuertos OurAirports (dominio público); iconos Lucide (ISC); letra Newsreader (OFL); Preact (MIT), htm (Apache-2.0), Leaflet (BSD-2), JSZip (MIT), supabase-js (MIT) y qrcode-generator (MIT).
+Créditos de datos y librerías: mapas de OpenFreeMap y OpenMapTiles con datos © colaboradores de OpenStreetMap, dibujados con MapLibre GL (BSD-3) y su enlace con Leaflet (ISC); búsqueda Nominatim y Photon; tiempo Open-Meteo (CC BY 4.0); aeropuertos OurAirports (dominio público); iconos Lucide (ISC); letra Newsreader (OFL); Preact (MIT), htm (Apache-2.0), Leaflet (BSD-2), JSZip (MIT), supabase-js (MIT) y qrcode-generator (MIT).

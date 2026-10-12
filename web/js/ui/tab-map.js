@@ -4,7 +4,7 @@ import { Btn, Icon, IconBtn, Chip, Modal, Field, openModal, confirm, Spinner, Me
 import { ImportModal } from './map-import.js';
 import { openReservation } from './tab-bookings.js';
 import { ICONS } from '../lib/icon-data.js';
-import { loadLeaflet, tileLayer, currentMapStyle, MAP_STYLES } from '../lib/leaflet-loader.js';
+import { loadLeaflet, baseLayer, currentMapStyle, MAP_STYLES } from '../lib/leaflet-loader.js';
 import { PLACE_CATS, RES_KINDS, newPlace, resTitle, isTransport } from '../lib/model.js';
 import { updateTrip, toast, useStore, setPrefs, getTrip } from '../lib/store.js';
 import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, googleDirectionsUrl, appleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
@@ -49,7 +49,7 @@ function useLeafletMap(ref, { interactive = true } = {}) {
   const [map, setMap] = useState(null);
   const theme = useStore(s => s.prefs.mapStyle + (document.documentElement.dataset.dark || ''));
   useEffect(() => {
-    let m, alive = true, tiles;
+    let m, alive = true;
     loadLeaflet().then(L => {
       if (!alive || !ref.current) return;
       m = L.map(ref.current, {
@@ -58,8 +58,6 @@ function useLeafletMap(ref, { interactive = true } = {}) {
       }).setView([40.4, -3.7], 3);
       if (interactive) m.zoomControl.setPosition('topright');
       m.attributionControl.setPrefix(false);
-      tiles = tileLayer(L, currentMapStyle()).addTo(m);
-      m._cvTiles = tiles;
       setMap(m);
       // Ajusta el tamaño cuando cambia el contenedor.
       const ro = new ResizeObserver(() => m.invalidateSize());
@@ -68,11 +66,16 @@ function useLeafletMap(ref, { interactive = true } = {}) {
     }).catch(e => toast(e.message, 'error'));
     return () => { alive = false; if (m) { m._cvRO?.disconnect(); m.remove(); } };
   }, []);
+  // Fondo del mapa (se cambia al cambiar el tema o el estilo).
   useEffect(() => {
     if (!map) return;
-    const L = window.L;
-    map._cvTiles?.remove();
-    map._cvTiles = tileLayer(L, currentMapStyle()).addTo(map);
+    let alive = true;
+    baseLayer(window.L, currentMapStyle(), { interactive }).then(layer => {
+      if (!alive) return;
+      map._cvTiles?.remove();
+      map._cvTiles = layer.addTo(map);
+    }).catch(() => {});
+    return () => { alive = false; };
   }, [theme, map]);
   return map;
 }

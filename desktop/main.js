@@ -116,7 +116,7 @@ app.whenReady().then(() => {
 
   const referer = siteUrl();
   session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: ['https://*.openstreetmap.org/*', 'https://photon.komoot.io/*', 'https://*.basemaps.cartocdn.com/*'] },
+    { urls: ['https://*.openstreetmap.org/*', 'https://photon.komoot.io/*'] },
     (details, cb) => {
       details.requestHeaders['Referer'] = referer;
       details.requestHeaders['User-Agent'] = `CuadernoDeViajes/${app.getVersion()} (${referer})`;
