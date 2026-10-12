@@ -6,6 +6,8 @@ import { RES_KINDS, newReservation, isTransport, DOC_KINDS } from '../lib/model.
 import { updateTrip, uploadFile, toast, removeFiles } from '../lib/store.js';
 import { CURRENCIES, dateOnly, timeOnly, parseAmount, sid, cx } from '../lib/util.js';
 import { resizeImage } from '../lib/image.js';
+import { linkPreview, classifyLink } from '../lib/links.js';
+import { geocode } from '../lib/geo.js';
 
 export function DateTime({ value, onChange, min, defaultTime }) {
   const d = dateOnly(value), t = timeOnly(value);
@@ -45,7 +47,36 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
   const [currency, setCurrency] = useState(res?.price?.currency || trip.budget?.currency || 'EUR');
   const [uploading, setUploading] = useState(false);
   const [newDocs, setNewDocs] = useState([]);
+  const [fetchingLink, setFetchingLink] = useState(false);
   const set = patch => setR(s => ({ ...s, ...patch }));
+
+  // Rellena nombre, ubicación y foto a partir del enlace (Booking, Airbnb, web del hotel…).
+  const fillFromLink = async () => {
+    const url = (r.url || '').trim();
+    if (!url) return;
+    if (classifyLink(url).kind === 'invalid') { toast('Escribe una dirección web completa (https://…).', 'error'); return; }
+    setFetchingLink(true);
+    try {
+      const p = await linkPreview(url, { refresh: true });
+      if (!p) { toast('No he podido leer el enlace. Rellénalo a mano; el enlace se guarda igual.', 'error'); return; }
+      const patch = {};
+      const name = p.name || p.title;
+      if (name && !r.title.trim()) patch.title = name;
+      if (p.site && !r.provider?.trim()) patch.provider = p.site.replace(/\.com$/i, '');
+      // Ubicación: coordenadas del propio enlace si las trae; si no, se busca por el nombre.
+      if (r.location?.lat == null) {
+        if (p.coords) patch.location = { lat: p.coords.lat, lng: p.coords.lng, name: name || 'Alojamiento', address: '' };
+        else if (name) {
+          try {
+            const hit = (await geocode(`${name}${trip.destination ? `, ${trip.destination}` : ''}`, { near, limit: 1 }))[0] || (await geocode(name, { limit: 1 }))[0];
+            if (hit) patch.location = { lat: hit.lat, lng: hit.lng, name: hit.name || name, address: hit.address || '' };
+          } catch { /* sin ubicación */ }
+        }
+      }
+      if (Object.keys(patch).length) set(patch);
+      toast(patch.location ? 'Datos y ubicación traídos del enlace' : name ? 'Datos traídos del enlace' : 'Enlace guardado (sin datos extra)', 'ok');
+    } finally { setFetchingLink(false); }
+  };
   const L = LABELS[r.kind] || LABELS.other;
   const near = trip.center || undefined;
   const k = RES_KINDS[r.kind];
@@ -108,6 +139,16 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
         <${Field} label=${L.location || 'Lugar'} hint=${r.kind === 'hotel' ? 'Búscalo para que aparezca en el mapa.' : ''}>
           <${PlaceSearch} value=${r.location} near=${near} placeholder=${r.title ? `Ej.: ${r.title}` : 'Nombre o dirección'}
             onChange=${v => set({ location: v, title: r.title || v?.name || '' })} /></${Field}>`}
+
+      ${!isTransport(r.kind) && html`<${Field} label=${r.kind === 'hotel' ? 'Enlace del alojamiento (Booking, Airbnb, web…)' : 'Enlace (opcional)'}
+        hint="Pega el enlace y pulsa «Traer datos»: rellena el nombre y la ubicación y guarda una foto para verla aquí.">
+        <div class="link-fill">
+          <input class="input" type="url" value=${r.url || ''} onInput=${e => set({ url: e.target.value })}
+            onBlur=${() => { if ((r.url || '').trim() && !r.title.trim() && r.location?.lat == null) fillFromLink(); }}
+            placeholder="https://www.booking.com/…  ·  https://airbnb.com/…" />
+          <${Btn} size="sm" icon=${fetchingLink ? undefined : 'download'} disabled=${fetchingLink || !(r.url || '').trim()} onClick=${fillFromLink}>${fetchingLink ? html`<${Spinner} size=${14} /> Leyendo…` : 'Traer datos'}</${Btn}>
+        </div>
+      </${Field}>`}
 
       <div class="field-row">
         <${Field} label=${L.start || 'Inicio'}><${DateTime} value=${r.start} onChange=${v => set({ start: v })} min=${undefined} defaultTime=${r.kind === 'hotel' ? '15:00' : ''} /></${Field}>

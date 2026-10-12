@@ -100,7 +100,7 @@ export function normalizeTrip(t) {
   return trip;
 }
 
-export const newReservation = (kind = 'flight', p = {}) => ({ id: sid(), kind, title: '', start: '', end: '', from: null, to: null, location: null, code: '', provider: '', number: '', seat: '', notes: '', price: null, docIds: [], ...p });
+export const newReservation = (kind = 'flight', p = {}) => ({ id: sid(), kind, title: '', start: '', end: '', from: null, to: null, location: null, code: '', provider: '', number: '', seat: '', notes: '', url: '', price: null, docIds: [], ...p });
 export const newPlace = (p = {}) => ({ id: sid(), name: '', address: '', lat: null, lng: null, category: 'sight', day: '', notes: '', url: '', visited: false, source: 'manual', ...p });
 export const newRoute = (p = {}) => ({ id: sid(), name: 'Ruta', color: '#4c6f86', points: [], source: 'manual', ...p });
 

@@ -134,3 +134,92 @@ export function readerDoc(htmlText, baseUrl) {
 }
 
 export const forgetLink = url => offlineFiles.remove([cacheKey(url)]);
+
+// ---------- Vista previa de un enlace (foto + nombre), tipo Booking / Airbnb ----------
+// Lee las etiquetas Open Graph de la página (og:image, og:title…), que es lo que usan
+// WhatsApp o Telegram para enseñar la miniatura. La foto y los datos se guardan para verlos
+// sin conexión. No es la galería entera (eso la cargan con sus apps), sino la foto principal.
+const previewKey = url => `preview:${url}`;
+const previewImgKey = url => `preview-img:${url}`;
+
+function decodeEntities(s) {
+  return String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d));
+}
+function metaContent(html, prop) {
+  const re = new RegExp(`<meta[^>]+(?:property|name)=["']${prop.replace(/:/g, '\\:')}["'][^>]*>`, 'i');
+  const tag = (html.match(re) || [])[0];
+  if (!tag) return '';
+  const c = tag.match(/content=["']([^"']*)["']/i);
+  return c ? decodeEntities(c[1].trim()) : '';
+}
+function parseCoords(html) {
+  const n = v => { const x = parseFloat(v); return isFinite(x) ? x : null; };
+  let lat = n(metaContent(html, 'og:latitude') || metaContent(html, 'place:location:latitude') || metaContent(html, 'geo.latitude'));
+  let lng = n(metaContent(html, 'og:longitude') || metaContent(html, 'place:location:longitude') || metaContent(html, 'geo.longitude'));
+  if (lat == null || lng == null) {
+    const geo = metaContent(html, 'geo.position') || metaContent(html, 'ICBM');
+    const m = geo.match(/(-?\d+\.\d+)[;,\s]+(-?\d+\.\d+)/);
+    if (m) { lat = n(m[1]); lng = n(m[2]); }
+  }
+  return lat != null && lng != null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+}
+// Nombre limpio para el campo del alojamiento: quita colas del tipo «– Precios 2026», «| Booking.com».
+function cleanTitle(t) {
+  let s = String(t || '').split(/\s[–—|·-]\s/)[0].trim();
+  s = s.replace(/\s*\(\d{4}[^)]*\)\s*$/, '').replace(/,?\s*(updated|actualizado)[\s\S]*$/i, '').trim();
+  return s || String(t || '').trim();
+}
+function parseOg(html, baseUrl) {
+  const abs = u => { try { return new URL(u, baseUrl).href; } catch { return u; } };
+  const rawTitle = metaContent(html, 'og:title') || decodeEntities((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '').trim();
+  const image = metaContent(html, 'og:image:secure_url') || metaContent(html, 'og:image') || metaContent(html, 'twitter:image');
+  return {
+    title: rawTitle,
+    name: cleanTitle(rawTitle),
+    description: metaContent(html, 'og:description') || metaContent(html, 'description'),
+    site: metaContent(html, 'og:site_name'),
+    image: image ? abs(image) : '',
+    coords: parseCoords(html),
+  };
+}
+
+// Devuelve { title, description, site, hasImage } o null si no se pudo. La imagen se recupera con previewImage().
+export async function linkPreview(url, { refresh = false } = {}) {
+  if (!refresh) {
+    const c = await offlineFiles.get(previewKey(url));
+    if (c) { try { return JSON.parse(await c.text()); } catch { /* vuelve a pedirla */ } }
+  }
+  const info = classifyLink(url);
+  if (info.kind === 'invalid') return null;
+  let htmlText = null, finalUrl = url;
+  // 1) Descarga directa (en escritorio casi siempre; en web si el sitio lo permite).
+  try {
+    const g = await directFetch(info.src || url);
+    const t = await g.blob.text();
+    if (/<(!doctype|html|head|meta)/i.test(t)) { htmlText = t; finalUrl = g.finalUrl || url; }
+  } catch { /* se intenta con el ayudante */ }
+  // 2) A través del ayudante de Gmail (servidor de Google, sin las trabas del navegador).
+  if (!htmlText && gmailConfigured()) {
+    try { const r = await fetchViaHelper(info.src || url); if (r.html != null) { htmlText = r.html; finalUrl = r.finalUrl || url; } }
+    catch { /* sin vista previa */ }
+  }
+  if (!htmlText) return null;
+  const og = parseOg(htmlText, finalUrl);
+  let hasImage = false;
+  if (og.image) {
+    try {
+      const ir = await loadLink(og.image, classifyLink(og.image), { allowCache: false, store: false });
+      if (ir.type === 'image' && ir.blob) { await offlineFiles.put(previewImgKey(url), ir.blob); hasImage = true; }
+    } catch { /* sin foto */ }
+  }
+  const preview = { title: og.title || '', name: og.name || '', description: og.description || '', site: og.site || '', coords: og.coords || null, hasImage, finalUrl };
+  try { await offlineFiles.put(previewKey(url), new Blob([JSON.stringify(preview)], { type: 'application/json' })); } catch { /* nada */ }
+  return preview;
+}
+
+// Blob URL de la foto guardada (o null). Acuérdate de revokeObjectURL al terminar.
+export async function previewImage(url) {
+  const b = await offlineFiles.get(previewImgKey(url));
+  return b ? URL.createObjectURL(b) : null;
+}
+export const forgetPreview = url => offlineFiles.remove([previewKey(url), previewImgKey(url)]);

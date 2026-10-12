@@ -9,6 +9,9 @@ export function PlaceSearch({ value, onChange, near, placeholder = 'Nombre o dir
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState(null);
   const [editing, setEditing] = useState(!value);
+  // Si la ubicación se rellena sola (p. ej. desde el enlace), muestra el valor en vez del buscador.
+  const prevVal = useRef(value);
+  useEffect(() => { if (value && value !== prevVal.current) setEditing(false); prevVal.current = value; }, [value]);
   const run = async () => {
     if (!q.trim()) return;
     setBusy(true);

@@ -1,6 +1,7 @@
 // Pestaña Reservas: vuelos, alojamientos, trenes… con sus códigos y billetes.
-import { html, useState } from '../../vendor/preact-htm.js';
+import { html, useState, useEffect } from '../../vendor/preact-htm.js';
 import { Btn, Icon, Empty, Chip, openModal, confirm, Modal, copyText } from './kit.js';
+import { linkPreview, previewImage } from '../lib/links.js';
 import { ReservationForm, KindPicker } from './res-form.js';
 import { openDoc } from './tab-docs.js';
 import { RES_KINDS, resTitle, isTransport, DOC_KINDS } from '../lib/model.js';
@@ -77,6 +78,32 @@ export function ResCard({ trip, r, onOpen }) {
   </article>`;
 }
 
+// Vista previa del enlace de la reserva (foto + nombre), tipo Booking / Airbnb.
+function ReservationPreview({ trip, r }) {
+  const [p, setP] = useState(undefined); // undefined = cargando
+  const [img, setImg] = useState(null);
+  const host = (() => { try { return new URL(r.url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+  useEffect(() => {
+    let alive = true, obj = null;
+    (async () => {
+      const pv = await linkPreview(r.url).catch(() => null);
+      if (!alive) return;
+      setP(pv || null);
+      if (pv?.hasImage) { obj = await previewImage(r.url); if (alive) setImg(obj); else if (obj) URL.revokeObjectURL(obj); }
+    })();
+    return () => { alive = false; if (obj) URL.revokeObjectURL(obj); };
+  }, [r.url]);
+  return html`<button type="button" class="res-link-prev" onClick=${() => openDoc(trip, { kind: 'enlace', url: r.url, name: r.title || host })}>
+    ${img ? html`<img src=${img} alt="" class="rlp-img" />` : html`<span class="rlp-img rlp-ph"><${Icon} name=${p === undefined ? 'clock' : 'link'} size=${20} /></span>`}
+    <span class="rlp-text">
+      <small>${(p && p.site) || host || 'Enlace'}</small>
+      <b>${(p && (p.name || p.title)) || 'Abrir el enlace'}</b>
+      ${p && p.description && html`<span class="rlp-desc">${p.description}</span>`}
+    </span>
+    <${Icon} name="external" size=${16} />
+  </button>`;
+}
+
 function ResDetail({ close, trip, r }) {
   const k = RES_KINDS[r.kind];
   const pts = [r.from, r.to, r.location].filter(p => p && p.lat != null);
@@ -86,6 +113,7 @@ function ResDetail({ close, trip, r }) {
       <${Btn} kind="ghost" icon="trash" onClick=${async () => { if (await removeReservation(trip, r)) close(); }}>Borrar</${Btn}>
       <${Btn} kind="primary" icon="edit" onClick=${() => { close(); editReservation(trip, r); }}>Editar</${Btn}>`}>
     <${ResCard} trip=${trip} r=${r} onOpen=${() => {}} />
+    ${r.url && html`<${ReservationPreview} trip=${trip} r=${r} />`}
     <dl class="details">
       ${r.start && html`<dt>${r.kind === 'hotel' ? 'Entrada' : 'Inicio'}</dt><dd>${fmtDateTime(r.start)}</dd>`}
       ${r.end && html`<dt>${r.kind === 'hotel' ? 'Salida' : 'Fin'}</dt><dd>${fmtDateTime(r.end)}</dd>`}
