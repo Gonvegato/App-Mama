@@ -91,6 +91,20 @@ Precio total                                                                    
   assert.equal(r.provider, 'Booking');
 });
 
+test('saca la dirección literal del correo (Ubicación/Dirección)', () => {
+  const r1 = parseReservationDoc('Hotel X\nUbicación   SAN BARTOLOME 82, 31694 Espinal-Auzperri,\nEspaña');
+  assert.equal(r1.address, 'SAN BARTOLOME 82, 31694 Espinal-Auzperri, España');
+  const r2 = parseReservationDoc('Dirección: Calle Mayor 10, 28013 Madrid');
+  assert.equal(r2.address, 'Calle Mayor 10, 28013 Madrid');
+  const r3 = parseReservationDoc('Address: 221B Baker Street, London');
+  assert.equal(r3.address, '221B Baker Street, London');
+});
+
+test('no confunde la dirección con un correo electrónico ni con «ver ubicación en el mapa»', () => {
+  assert.equal(parseReservationDoc('Dirección de correo electrónico: ana@ejemplo.com').address, undefined);
+  assert.equal(parseReservationDoc('Ver ubicación en el mapa').address, undefined);
+});
+
 test('limpia el nombre aunque el PDF parta las palabras («con fi rmada»)', () => {
   const r = parseReservationDoc('Tu reserva en el HOTEL RURAL BASQUE IRATI está con fi rmada\nBooking.com\nEntrada: 23 de octubre de 2026\nSalida: 25 de octubre de 2026');
   assert.equal(r.name, 'HOTEL RURAL BASQUE IRATI');

@@ -104,11 +104,14 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
     if (p.end && !r.end) patch.end = p.end;
     if (Object.keys(patch).length) set(patch);
     if (p.price && !parseAmount(price)) { setPrice(String(p.price).replace('.', ',')); if (p.currency) setCurrency(p.currency); filled.push('precio'); }
-    if (r.location?.lat == null && p.name) {
+    if (r.location?.lat == null && (p.address || p.name)) {
+      // Si el documento trae una dirección literal, se usa esa (es la de verdad y sale mejor en el mapa).
+      const query = p.address || `${p.name}${trip.destination ? `, ${trip.destination}` : ''}`;
       try {
-        const hit = (await geocode(`${p.name}${trip.destination ? `, ${trip.destination}` : ''}`, { near, limit: 1 }))[0];
-        if (hit) { set({ location: { lat: hit.lat, lng: hit.lng, name: hit.name || p.name, address: hit.address || '' } }); filled.push('ubicación'); }
-      } catch { /* sin ubicación */ }
+        const hit = (await geocode(query, { near, limit: 1 }))[0] || (p.name ? (await geocode(p.name, { limit: 1 }))[0] : null);
+        if (hit) { set({ location: { lat: hit.lat, lng: hit.lng, name: p.name || hit.name, address: p.address || hit.address || '' } }); filled.push(p.address ? 'dirección y ubicación' : 'ubicación'); }
+        else if (p.address) { set({ location: { lat: null, lng: null, name: p.name || p.address, address: p.address } }); filled.push('dirección'); }
+      } catch { if (p.address) set({ location: { lat: null, lng: null, name: p.name || p.address, address: p.address } }); }
     }
     return filled;
   };

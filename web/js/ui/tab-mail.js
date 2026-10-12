@@ -68,11 +68,14 @@ async function createReservationFromEmail(trip, email, close) {
   if (parsed.provider) r.provider = parsed.provider;
   if (parsed.phone) r.phone = parsed.phone;
   if (parsed.price) { r.price = { amount: parsed.price, currency: parsed.currency || trip.budget?.currency || 'EUR' }; filled.push('precio'); }
-  if (parsed.name && ['hotel', 'restaurant', 'activity'].includes(kind)) {
+  if (['hotel', 'restaurant', 'activity'].includes(kind) && (parsed.address || parsed.name)) {
+    // Si el correo trae una dirección literal, se usa esa (es la de verdad y sale mejor en el mapa).
+    const query = parsed.address || `${parsed.name}${trip.destination ? `, ${trip.destination}` : ''}`;
     try {
-      const hit = (await geocode(`${parsed.name}${trip.destination ? `, ${trip.destination}` : ''}`, { near: trip.center || undefined, limit: 1 }))[0] || (await geocode(parsed.name, { limit: 1 }))[0];
-      if (hit) { r.location = { lat: hit.lat, lng: hit.lng, name: hit.name || parsed.name, address: hit.address || '' }; filled.push('ubicación'); }
-    } catch { /* sin ubicación */ }
+      const hit = (await geocode(query, { near: trip.center || undefined, limit: 1 }))[0] || (parsed.name ? (await geocode(parsed.name, { limit: 1 }))[0] : null);
+      if (hit) { r.location = { lat: hit.lat, lng: hit.lng, name: parsed.name || hit.name, address: parsed.address || hit.address || '' }; filled.push(parsed.address ? 'dirección y ubicación' : 'ubicación'); }
+      else if (parsed.address) { r.location = { lat: null, lng: null, name: parsed.name || parsed.address, address: parsed.address }; filled.push('dirección'); }
+    } catch { if (parsed.address) r.location = { lat: null, lng: null, name: parsed.name || parsed.address, address: parsed.address }; }
   }
   if (filled.length) toast(`Del correo he rellenado: ${filled.join(', ')}. Revísalo por si acaso.`, 'ok');
   openModal(ReservationForm, { trip, kind, res: r, isNew: true });

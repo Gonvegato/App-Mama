@@ -139,6 +139,17 @@ export function parseReservationDoc(text) {
   const phone = t.match(/(?:tel[eé]fono|phone|tel\.?)\s*[:]?\s*(\+?[\d][\d\s()-]{6,}\d)/i);
   if (phone) out.phone = phone[1].trim();
 
+  // Dirección: el texto que aparece tras «Ubicación / Dirección / Localización / Address».
+  // Es la dirección de verdad, así que se guarda tal cual y luego se usa para el mapa.
+  const addr = t.match(/(?:ubicaci[oó]n|direcci[oó]n|localizaci[oó]n|address|location)\s*:?\s*([^\n]{5,120})(\n[^\n]{2,60})?/i);
+  if (addr) {
+    let a = addr[1].trim();
+    if (addr[2] && /,\s*$/.test(a)) a += ' ' + addr[2].trim();   // une la segunda línea si la dirección venía partida
+    a = a.replace(/\s{2,}/g, ' ').replace(/[,\s]+$/, '').trim();
+    // Solo si parece una dirección de verdad (con número, coma o palabra de calle) y no un correo ni «en el mapa».
+    if (a.length >= 5 && !/@/.test(a) && /\d|,|\b(c\/|calle|avda|avenida|plaza|pza|paseo|camino|carrer|r[uú]a|str\.?|street|road|rd\.?)\b/i.test(a) && !/\b(mapa|map|aqu[ií]|here)\b/i.test(a)) out.address = a;
+  }
+
   if (/booking\.com/.test(low)) out.provider = 'Booking';
   else if (/airbnb/.test(low)) out.provider = 'Airbnb';
   else if (/expedia/.test(low)) out.provider = 'Expedia';
