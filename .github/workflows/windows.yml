@@ -41,6 +41,31 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx electron-builder --win --x64 --publish never
 
+      # Versión para llevar en un USB: se descomprime en el USB y se abre desde ahí en cualquier PC.
+      - name: Crear la versión para USB (.zip)
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $root = 'dist/usb'
+          $app = Join-Path $root 'Cuaderno de viajes'
+          New-Item -ItemType Directory -Force -Path $app | Out-Null
+          Copy-Item -Path 'dist/win-unpacked/*' -Destination $app -Recurse -Force
+          if (-not (Test-Path (Join-Path $app 'Cuaderno de viajes.exe'))) { throw 'Falta el programa en win-unpacked' }
+          Set-Content -Path (Join-Path $app 'modo-usb.txt') -Encoding utf8 -Value 'Este archivo activa el modo USB: la sesion, los ajustes y las copias de los archivos se guardan en el propio USB. No lo borres.'
+          New-Item -ItemType Directory -Force -Path (Join-Path $root 'Archivos de viajes') | Out-Null
+          Set-Content -Path (Join-Path $root 'Archivos de viajes/LEEME.txt') -Encoding utf8 -Value 'Aqui se guardan solas las copias de los archivos de cada viaje. El original esta en la nube: si borras algo de aqui, el programa lo vuelve a copiar.'
+          $bat = "@echo off`r`nstart `"`" `"%~dp0Cuaderno de viajes\Cuaderno de viajes.exe`"`r`n"
+          [System.IO.File]::WriteAllText((Join-Path (Resolve-Path $root) 'Abrir Cuaderno de viajes.bat'), $bat, [System.Text.Encoding]::ASCII)
+          Compress-Archive -Path "$root/*" -DestinationPath "dist/Cuaderno-de-viajes-$version-USB.zip" -Force
+          Get-Item "dist/*.zip" | Format-List Name, Length
+
+      - name: Guardar la versión para USB como artefacto
+        uses: actions/upload-artifact@v7
+        with:
+          name: Cuaderno-de-viajes-USB
+          path: dist/*-USB.zip
+          if-no-files-found: error
+
       - name: Guardar el instalador como artefacto
         uses: actions/upload-artifact@v7
         with:
@@ -56,7 +81,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v1.0.${{ github.run_number }}"
-          gh release create "$TAG" dist/*.exe \
+          gh release create "$TAG" dist/*.exe dist/*-USB.zip \
             --title "Cuaderno de viajes $TAG" \
-            --notes "Instalador para Windows. Descarga el archivo .exe, ábrelo y sigue los pasos. Si Windows muestra «Windows protegió su PC», pulsa «Más información» → «Ejecutar de todas formas» (el programa no está firmado digitalmente)." \
+            --notes "Instalador para Windows: descarga el archivo .exe, ábrelo y sigue los pasos. Versión para USB: descarga el .zip, descomprímelo en el USB y abre «Abrir Cuaderno de viajes». Si Windows muestra «Windows protegió su PC», pulsa «Más información» → «Ejecutar de todas formas» (el programa no está firmado digitalmente)." \
             --latest

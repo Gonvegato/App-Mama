@@ -8,6 +8,7 @@ import { gmailPing } from '../lib/gmail.js';
 import { downloadBlob, cx, todayISO } from '../lib/util.js';
 import qrcode from '../../vendor/qrcode.mjs';
 import { StorageSection } from './storage.js';
+import { UsbSection } from './usb-panel.js';
 
 const APP_VERSION = '1.0.0';
 
@@ -179,13 +180,19 @@ export function Settings({ route }) {
         <div class="btn-row">
           <${Btn} icon="refresh" onClick=${() => refresh().then(() => toast('Sincronizado', 'ok'))}>Sincronizar ahora</${Btn}>
           <${Btn} icon="key" onClick=${() => openModal(PasswordForm)}>Cambiar contraseña</${Btn}>
-          <${Btn} kind="ghost" icon="log-out" onClick=${async () => { if (await confirm('¿Cerrar sesión?', 'Para volver a entrar necesitarás el correo y la contraseña.', { okLabel: 'Cerrar sesión' })) signOut(); }}>Cerrar sesión</${Btn}>
-        </div>` : html`
+          <${Btn} kind="ghost" icon="log-out" onClick=${async () => { if (await confirm('¿Cerrar sesión?', 'Solo en este dispositivo. Para volver a entrar necesitarás el correo y la contraseña.', { okLabel: 'Cerrar sesión' })) signOut(); }}>Cerrar sesión</${Btn}>
+        </div>
+        <p class="muted small">¿Has perdido el móvil o el USB? <button type="button" class="link-btn" onClick=${async () => {
+          if (!await confirm('Cerrar la sesión en los demás', 'Se cerrará la sesión en todos los demás ordenadores, móviles y USB (puede tardar hasta una hora en hacerse efectivo). Aquí seguirás dentro. Conviene cambiar también la contraseña.', { okLabel: 'Cerrar en los demás' })) return;
+          try { await getBackend().signOutOthers(); toast('Sesión cerrada en los demás dispositivos', 'ok'); } catch (e) { toast(e.message, 'error'); }
+        }}>Cerrar la sesión en todos los demás dispositivos</button>.</p>` : html`
         <p>Modo <b>solo este dispositivo</b>: los viajes se guardan en este ${inApp ? 'ordenador' : 'navegador'} y no se ven en otros.</p>
         <div class="btn-row"><${Btn} icon="cloud" onClick=${async () => { if (await confirm('Conectar con la nube', 'Volverás a la pantalla de inicio para conectar con tu cuenta. Antes, descarga una copia de seguridad para pasar tus viajes (se puede importar después).', { okLabel: 'Continuar' })) resetConfig(); }}>Conectar con la nube</${Btn}></div>`}
     </${Section}>
 
     <${StorageSection} />
+
+    <${UsbSection} />
 
     <${Gmail} />
 

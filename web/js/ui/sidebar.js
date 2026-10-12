@@ -5,6 +5,7 @@ import { Cover } from './cover.js';
 import { TripForm } from './trip-form.js';
 import { useStore } from '../lib/store.js';
 import { sortTrips } from '../lib/model.js';
+import { UsbBadge } from './usb-panel.js';
 import { fmtRange, tripStatus, matches, cx } from '../lib/util.js';
 import { tripPath } from '../lib/router.js';
 
@@ -63,7 +64,7 @@ export function Sidebar({ route }) {
       ${q && !filtered.length && html`<p class="side-none">No hay viajes que coincidan.</p>`}
     </nav>
     <footer class="side-foot">
-      <${SyncBadge} />
+      <span class="side-badges"><${SyncBadge} /><${UsbBadge} /></span>
       <a class=${cx('side-settings', route.name === 'settings' && 'is-active')} href="#/ajustes" aria-label="Ajustes" title="Ajustes"><${Icon} name="settings" size=${18} /></a>
     </footer>
   </aside>`;

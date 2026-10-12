@@ -152,7 +152,13 @@ export class CloudBackend {
     if (error) throw new Error(niceError(error));
     return { email: data.user.email, id: data.user.id };
   }
-  async signOut() { await this.sb.auth.signOut(); }
+  // Solo en este dispositivo: cerrar sesión en un PC no debe sacarla del móvil.
+  async signOut() { await this.sb.auth.signOut({ scope: 'local' }); }
+  // Por si se pierde un USB o un móvil: cierra la sesión en todos los demás.
+  async signOutOthers() {
+    const { error } = await this.sb.auth.signOut({ scope: 'others' });
+    if (error) throw new Error(niceError(error));
+  }
   async changePassword(password) {
     const { error } = await this.sb.auth.updateUser({ password });
     if (error) throw new Error(/should be at least|weak|short/i.test(error.message) ? 'La contraseña es demasiado corta o sencilla (mínimo 6 caracteres).' : /different from the old/i.test(error.message) ? 'La nueva contraseña debe ser distinta de la actual.' : niceError(error));

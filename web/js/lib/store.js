@@ -30,6 +30,9 @@ export const getBackend = () => backend;
 
 let version = 0;
 function emit() { version++; for (const l of listeners) l(state); }
+// Para módulos que no son componentes (p. ej. la copia al USB).
+export function subscribe(l) { listeners.add(l); return () => listeners.delete(l); }
+
 export function setState(patch) { Object.assign(state, typeof patch === 'function' ? patch(state) : patch); emit(); }
 
 export function useStore(selector = s => s) {

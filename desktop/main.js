@@ -1,5 +1,5 @@
 // Aplicación de escritorio (Windows): abre la misma app web en una ventana propia.
-const { app, BrowserWindow, protocol, net, shell, Menu, session, screen } = require('electron');
+const { app, BrowserWindow, protocol, net, shell, Menu, session, screen, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
@@ -16,6 +16,81 @@ function siteUrl() {
     if (m && m[1]) return m[1];
   } catch { /* sin config */ }
   return 'https://github.com/';
+}
+
+// ---------- Modo USB ----------
+// Si junto al programa hay un archivo «modo-usb.txt», todo (sesión, ajustes y copias de
+// los archivos) se guarda en el propio USB y se puede llevar de un ordenador a otro.
+const EXE_DIR = path.dirname(process.execPath);
+const USB_ROOT = process.env.CUADERNO_USB || (fs.existsSync(path.join(EXE_DIR, 'modo-usb.txt')) ? path.resolve(EXE_DIR, '..') : null);
+const USB_FILES = USB_ROOT ? path.join(USB_ROOT, 'Archivos de viajes') : null;
+if (USB_ROOT) {
+  app.setPath('userData', path.join(USB_ROOT, 'Cuaderno de viajes', 'Datos'));
+}
+
+// Ruta segura dentro de la carpeta de archivos del USB (nunca fuera de ella).
+function usbPath(rel) {
+  if (!USB_FILES || typeof rel !== 'string' || !rel) throw new Error('Ruta no válida');
+  const full = path.normalize(path.join(USB_FILES, rel));
+  if (!full.startsWith(USB_FILES + path.sep)) throw new Error('Ruta no válida');
+  return full;
+}
+
+function setupUsbIpc() {
+  ipcMain.handle('usb:info', async () => {
+    if (!USB_ROOT) return { enabled: false };
+    let free = null, total = null;
+    try { const st = fs.statfsSync(USB_ROOT); free = st.bavail * st.bsize; total = st.blocks * st.bsize; } catch { /* sin datos */ }
+    return { enabled: true, free, total, folder: USB_FILES };
+  });
+  ipcMain.handle('usb:write', async (_e, rel, data) => {
+    const full = usbPath(rel);
+    await fs.promises.mkdir(path.dirname(full), { recursive: true });
+    const tmp = `${full}.parcial`;
+    await fs.promises.writeFile(tmp, Buffer.from(data));
+    await fs.promises.rename(tmp, full);
+    return true;
+  });
+  ipcMain.handle('usb:stat', async (_e, rel) => {
+    try { const st = await fs.promises.stat(usbPath(rel)); return st.isFile() ? st.size : null; } catch { return null; }
+  });
+  ipcMain.handle('usb:move', async (_e, from, to) => {
+    try {
+      const a = usbPath(from), b = usbPath(to);
+      await fs.promises.mkdir(path.dirname(b), { recursive: true });
+      await fs.promises.rename(a, b);
+      const dir = path.dirname(a);
+      if (dir !== USB_FILES && (await fs.promises.readdir(dir)).length === 0) await fs.promises.rmdir(dir);
+      return true;
+    } catch { return false; }
+  });
+  ipcMain.handle('usb:remove', async (_e, rel) => {
+    try {
+      const full = usbPath(rel);
+      await fs.promises.rm(full, { force: true });
+      // Quita la carpeta del viaje si se ha quedado vacía.
+      const dir = path.dirname(full);
+      if (dir !== USB_FILES && (await fs.promises.readdir(dir)).length === 0) await fs.promises.rmdir(dir);
+    } catch { /* ya no estaba */ }
+    return true;
+  });
+  ipcMain.handle('usb:index:get', async () => {
+    try { return JSON.parse(await fs.promises.readFile(path.join(app.getPath('userData'), 'indice-archivos.json'), 'utf8')); } catch { return {}; }
+  });
+  ipcMain.handle('usb:index:set', async (_e, idx) => {
+    const file = path.join(app.getPath('userData'), 'indice-archivos.json');
+    await fs.promises.mkdir(path.dirname(file), { recursive: true });
+    await fs.promises.writeFile(`${file}.parcial`, JSON.stringify(idx));
+    await fs.promises.rename(`${file}.parcial`, file);
+    return true;
+  });
+  ipcMain.handle('usb:open', async (_e, rel) => {
+    if (!USB_FILES) return false;
+    await fs.promises.mkdir(USB_FILES, { recursive: true });
+    if (rel) { try { shell.showItemInFolder(usbPath(rel)); return true; } catch { /* abre la carpeta */ } }
+    await shell.openPath(USB_FILES);
+    return true;
+  });
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -108,6 +183,11 @@ app.on('second-instance', () => {
 app.whenReady().then(() => {
   protocol.handle(SCHEME, req => {
     const { pathname } = new URL(req.url);
+    // Archivos copiados en el USB: app://cuaderno/__usb/<ruta>
+    if (pathname.startsWith('/__usb/')) {
+      try { return net.fetch(pathToFileURL(usbPath(decodeURIComponent(pathname.slice(7)))).toString()); }
+      catch { return new Response('No encontrado', { status: 404 }); }
+    }
     const rel = decodeURIComponent(pathname).replace(/^\/+/, '') || 'index.html';
     const file = path.normalize(path.join(WEB, rel));
     if (!file.startsWith(WEB)) return new Response('No permitido', { status: 403 });
@@ -156,6 +236,7 @@ app.whenReady().then(() => {
     cb(['geolocation', 'clipboard-read', 'clipboard-sanitized-write', 'fullscreen'].includes(permission));
   });
 
+  setupUsbIpc();
   buildMenu();
   createWindow();
 });

@@ -76,6 +76,26 @@ Ojo: GitHub **desactiva las tareas programadas de un repositorio público tras 6
 
 ---
 
+## Llevar el programa en un USB
+
+Además del instalador, cada versión incluye **`Cuaderno-de-viajes-…-USB.zip`** (en *Actions* → la última ejecución → artefacto *Cuaderno-de-viajes-USB*, o en *Releases*).
+
+1. Descomprime el `.zip` **directamente en la raíz del USB**. Quedan tres cosas: la carpeta `Cuaderno de viajes` (el programa), la carpeta `Archivos de viajes` y **`Abrir Cuaderno de viajes.bat`**.
+2. En cualquier PC con Windows, abre `Abrir Cuaderno de viajes.bat` (o `Cuaderno de viajes\Cuaderno de viajes.exe`). No se instala nada en el ordenador.
+3. Se entra con la misma cuenta de siempre: los viajes son los de la nube, igual que en el móvil.
+
+Mientras el programa está abierto desde el USB, **copia solo y sin preguntar** todos los archivos de los viajes (los subidos y los guardados como enlace a PDF, fotos, Dropbox, pCloud o archivos de Google Drive) a `Archivos de viajes\<año-mes> <viaje>\`. A partir de ahí se abren desde el USB: más rápido y sin conexión. Si se cambia el nombre o la fecha del viaje, la carpeta se renombra; si se borra un documento, su copia también. Las webs normales no se copian (no son un archivo). El estado se ve en **Ajustes → Copia en el USB** y con el aviso de la barra lateral.
+
+A tener en cuenta:
+
+- **Solo Windows** (64 bits). En cada PC nuevo puede salir «Windows protegió su PC» (*Más información → Ejecutar de todas formas*); y algunos ordenadores de empresa o de biblioteca no dejan abrir programas desde un USB.
+- Mejor un USB **3.0** o superior: el programa ocupa unos 300 MB y en un USB lento tarda en arrancar.
+- La nube sigue siendo el original. Las copias del USB son eso, copias: si se pierde el USB no se pierde nada, pero **quien lo encuentre puede ver los archivos y entrar en la cuenta** (la sesión queda guardada en el USB). Si se pierde: desde el móvil, **Ajustes → Cuenta → «Cerrar la sesión en todos los demás dispositivos»** y cambiad la contraseña. («Cerrar sesión» normal solo cierra la del dispositivo en el que se pulsa.)
+- **Actualizar:** descomprime el `.zip` nuevo encima del anterior (sustituyendo archivos). No borres la carpeta `Cuaderno de viajes\Datos`, que guarda la sesión y la lista de copias (si se borra, solo hay que volver a entrar y los archivos se vuelven a copiar).
+- Retira el USB con «Quitar hardware de forma segura» después de cerrar el programa, sobre todo si estaba copiando.
+
+---
+
 ## Importar lugares y rutas al mapa
 
 En **Mapa → Importar** hay una pestaña «Cómo exportar» con estas mismas instrucciones.
@@ -95,7 +115,7 @@ En **Mapa → Importar** hay una pestaña «Cómo exportar» con estas mismas in
 - **El tiempo:** solo hay previsión real hasta 16 días vista (Open-Meteo). Para viajes más lejanos no se muestra nada en vez de inventar.
 - **Búsqueda de lugares:** usa OpenStreetMap (Nominatim), que solo permite búsquedas al pulsar «Buscar» y una por segundo. Por eso no autocompleta mientras se escribe.
 - **Espacio:** el plan gratuito de Supabase incluye 1 GB para archivos y 500 MB de base de datos; las fotos se reducen antes de subirlas. Archivos de hasta 50 MB. En **Ajustes → Espacio para archivos** se ve lo usado, aparece un aviso al 80 % y **«Liberar espacio»** lista todos los archivos de mayor a menor para borrar los que sobren. Las guías grandes se pueden guardar como enlace y no ocupan nada.
-- **Sin conexión:** se ve todo lo ya cargado (incluidos los trozos de mapa visitados en el móvil), pero los documentos y correos guardados necesitan conexión para abrirse.
+- **Sin conexión:** se ve todo lo ya cargado (incluidos los trozos de mapa visitados en el móvil). Los documentos se pueden dejar guardados en el dispositivo con «Guardar sin conexión» (en el programa desde un USB, se copian todos solos); los correos necesitan conexión.
 
 ---
 

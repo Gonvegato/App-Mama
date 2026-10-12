@@ -68,7 +68,7 @@ async function pcloudDesktop(code) {
 }
 
 // Trae el contenido de un enlace. Devuelve { type: 'pdf'|'image'|'html'|'text'|'other', blob?, html?, frameable?, finalUrl? }
-export async function loadLink(url, info = classifyLink(url), { allowCache = true } = {}) {
+export async function loadLink(url, info = classifyLink(url), { allowCache = true, store = true } = {}) {
   if (allowCache) {
     const cached = await offlineFiles.get(cacheKey(url));
     if (cached) return describe(cached, cached.type, url, true);
@@ -88,14 +88,14 @@ export async function loadLink(url, info = classifyLink(url), { allowCache = tru
       if (r.html != null) {
         const blob = new Blob([r.html], { type: 'text/html' });
         const out = { type: 'html', html: r.html, frameable: !!r.frameable, finalUrl: r.finalUrl || info.src, blob };
-        if (r.html.length < 3e6) offlineFiles.put(cacheKey(url), blob);
+        if (store && r.html.length < 3e6) offlineFiles.put(cacheKey(url), blob);
         return out;
       }
       got = { blob: base64ToBlob(r.data, r.mime || 'application/octet-stream'), mime: r.mime, finalUrl: r.finalUrl, frameable: r.frameable };
     } catch (e) { lastErr = e; }
   }
   if (!got) throw lastErr || new Error('No se ha podido traer el enlace');
-  if (got.blob.size < 60 * 1024 * 1024 && !/text\/html/.test(got.mime)) offlineFiles.put(cacheKey(url), new Blob([got.blob], { type: got.mime || got.blob.type }));
+  if (store && got.blob.size < 60 * 1024 * 1024 && !/text\/html/.test(got.mime)) offlineFiles.put(cacheKey(url), new Blob([got.blob], { type: got.mime || got.blob.type }));
   return describe(got.blob, got.mime, got.finalUrl || info.src, false, got.frameable);
 }
 

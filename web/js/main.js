@@ -1,6 +1,7 @@
 // Punto de entrada de la app.
 import { html, render, useEffect } from '../vendor/preact-htm.js';
-import { useStore, boot, state } from './lib/store.js';
+import { useStore, boot, state, subscribe } from './lib/store.js';
+import { initUsb, scheduleSync } from './lib/usb.js';
 import { applyTheme, watchSystemTheme } from './lib/theme.js';
 import { useRoute } from './lib/router.js';
 import { ModalHost, ToastHost } from './ui/kit.js';
@@ -41,7 +42,12 @@ function App() {
 applyTheme(state.prefs);
 watchSystemTheme(() => state.prefs);
 render(html`<${App} />`, document.getElementById('app'));
-boot();
+boot().then(() => initUsb()).then(on => {
+  if (!on) return;
+  // Cada vez que cambian los viajes (archivo nuevo, enlace nuevo…), se copia al USB.
+  let last = state.trips;
+  subscribe(s => { if (s.trips !== last) { last = s.trips; scheduleSync(6000); } });
+});
 
 // Funciona sin conexión y se puede instalar como app (solo en web https).
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

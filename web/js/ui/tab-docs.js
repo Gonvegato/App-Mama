@@ -8,6 +8,7 @@ import { resizeImage } from '../lib/image.js';
 import { PdfView, needsPdfJs } from './pdf-view.js';
 import { classifyLink, loadLink, readerDoc, forgetLink, isDesktop } from '../lib/links.js';
 import { gmailConfigured } from '../lib/gmail.js';
+import { getLocal, localEntry, onUsb } from '../lib/usb.js';
 
 export function guessDocKind(name = '', mime = '') {
   const n = name.toLowerCase();
@@ -54,8 +55,16 @@ function PdfStage({ path, url, name }) {
   return blob ? html`<${PdfView} blob=${blob} />` : html`<${Spinner} size=${28} />`;
 }
 
+// Dirección del archivo: la copia del USB si existe; si no, la de la nube.
+function useDocUrl(trip, doc) {
+  const [local, setLocal] = useState(undefined);
+  useEffect(() => { let a = true; getLocal(trip, doc).then(l => a && setLocal(l)).catch(() => a && setLocal(null)); return () => { a = false; }; }, [doc.id]);
+  const cloud = useFileUrl(local === null ? doc.path : null);
+  return { url: local ? local.url : cloud, local };
+}
+
 function DocViewer({ close, trip, doc }) {
-  const url = useFileUrl(doc.path);
+  const { url, local } = useDocUrl(trip, doc);
   // Al abrir un documento se guarda una copia para poder verlo sin conexión.
   useEffect(() => { if (doc.path && navigator.onLine) keepOffline(doc.path).catch(() => {}); }, []);
   const res = trip.reservations.find(r => r.id === doc.resId);
@@ -67,9 +76,9 @@ function DocViewer({ close, trip, doc }) {
     footer=${html`
       <${Btn} kind="ghost" icon="edit" onClick=${() => { close(); editDoc(trip, doc); }}>Editar</${Btn}>
       <${Btn} kind="primary" icon="download" onClick=${download}>Descargar</${Btn}>`}>
-    ${(doc.note || res) && html`<p class="viewer-meta">${res && html`<span><${Icon} name="ticket" size=${15} /> ${resTitle(res)}</span>`}${doc.note && html`<span>${doc.note}</span>`}</p>`}
+    ${(doc.note || res || local) && html`<p class="viewer-meta">${local && html`<span class="usb-tag"><${Icon} name="hard-drive" size=${15} /> Abierto desde el USB</span>`}${res && html`<span><${Icon} name="ticket" size=${15} /> ${resTitle(res)}</span>`}${doc.note && html`<span>${doc.note}</span>`}</p>`}
     <div class=${cx('viewer-stage', isPdf(doc) && needsPdfJs() && 'viewer-pdf')}>
-      ${isPdf(doc) ? html`<${PdfStage} path=${doc.path} url=${url} name=${doc.name} />`
+      ${isPdf(doc) ? (local === undefined ? html`<${Spinner} size=${28} />` : html`<${PdfStage} path=${doc.path} url=${url} name=${doc.name} />`)
         : !url ? html`<${Spinner} size=${28} />`
         : isImage(doc) ? html`<img src=${url} alt=${doc.name} />`
         : html`<${Empty} icon="file" title="Vista previa no disponible" text="Descárgalo para abrirlo con su programa." />`}
@@ -116,9 +125,18 @@ function LinkStage({ url, info, retry }) {
       <iframe class="mail-frame" src=${st.src} title="Página" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe></div>`;
 }
 
+// Copia guardada en el USB (solo en el programa de Windows).
+function LocalStage({ local }) {
+  const ext = (local.rel.split('.').pop() || '').toLowerCase();
+  if (/^(jpe?g|png|gif|webp|avif|svg)$/.test(ext)) return html`<img src=${local.url} alt="" />`;
+  return html`<iframe src=${local.url} title="Archivo"></iframe>`;
+}
+
 function LinkViewer({ close, trip, doc }) {
   const info = classifyLink(doc.url);
   const [retry, setRetry] = useState(0);
+  const [local, setLocal] = useState(undefined);
+  useEffect(() => { let a = true; getLocal(trip, doc).then(l => a && setLocal(l)).catch(() => a && setLocal(null)); return () => { a = false; }; }, [doc.id]);
   const res = trip.reservations.find(r => r.id === doc.resId);
   const host = (() => { try { return new URL(doc.url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
   return html`<${Modal} title=${doc.name || host} close=${close} size="xl" class="viewer"
@@ -126,9 +144,11 @@ function LinkViewer({ close, trip, doc }) {
       <${Btn} kind="ghost" icon="edit" onClick=${() => { close(); editDoc(trip, doc); }}>Editar</${Btn}>
       ${info.kind !== 'embed' && html`<${Btn} kind="ghost" icon="refresh" onClick=${() => { forgetLink(doc.url); setRetry(n => n + 1); }}>Recargar</${Btn}>`}
       <a class="btn btn-default" href=${doc.url} target="_blank" rel="noopener"><${Icon} name="external" size=${18} /><span>Abrir en el navegador</span></a>`}>
-    <p class="viewer-meta"><span><${Icon} name="link" size=${15} /> ${info.service || host}</span>${res && html`<span><${Icon} name="ticket" size=${15} /> ${resTitle(res)}</span>`}${doc.note && html`<span>${doc.note}</span>`}</p>
+    <p class="viewer-meta"><span><${Icon} name="link" size=${15} /> ${info.service || host}</span>${local && retry === 0 && html`<span class="usb-tag"><${Icon} name="hard-drive" size=${15} /> Abierto desde el USB</span>`}${res && html`<span><${Icon} name="ticket" size=${15} /> ${resTitle(res)}</span>`}${doc.note && html`<span>${doc.note}</span>`}</p>
     <div class="viewer-stage viewer-link">
-      <${LinkStage} url=${doc.url} info=${info} retry=${retry} key=${retry} />
+      ${local === undefined ? html`<div class="pdf-msg"><${Spinner} size=${26} /></div>`
+        : local && retry === 0 ? html`<${LocalStage} local=${local} />`
+        : html`<${LinkStage} url=${doc.url} info=${info} retry=${retry} key=${retry} />`}
     </div>
   </${Modal}>`;
 }
@@ -215,6 +235,8 @@ function OfflineButton({ trip }) {
 
 export function DocsTab({ trip }) {
   const [filter, setFilter] = useState('all');
+  const [, force] = useState(0);
+  useEffect(() => onUsb(() => force(n => n + 1)), []);
   const [q, setQ] = useState('');
   const kinds = [...new Set(trip.docs.map(d => d.kind))];
   const shown = trip.docs.filter(d => (filter === 'all' || d.kind === filter) && matches(q, d.name, d.note, d.file))
@@ -247,7 +269,7 @@ export function DocsTab({ trip }) {
             <${Thumb} doc=${d} />
             <span class="doc-info">
               <b>${d.name}</b>
-              <small>${DOC_KINDS[d.kind]?.label || 'Documento'}${d.size ? ` · ${fmtSize(d.size)}` : ''}${d.fromEmail ? ' · de un correo' : ''}</small>
+              <small>${DOC_KINDS[d.kind]?.label || 'Documento'}${d.size ? ` · ${fmtSize(d.size)}` : ''}${d.fromEmail ? ' · de un correo' : ''}${localEntry(trip, d) ? html` · <span class="usb-tag"><${Icon} name="hard-drive" size=${12} /> en el USB</span>` : ''}</small>
               ${d.resId && html`<small class="doc-res"><${Icon} name="ticket" size=${13} /> ${resTitle(trip.reservations.find(r => r.id === d.resId) || {})}</small>`}
             </span>
           </button>

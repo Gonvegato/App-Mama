@@ -925,3 +925,10 @@ html.has-modal .main { overflow: hidden; }
 .cleanup-size { font-variant-numeric: tabular-nums; font-weight: 560; white-space: nowrap; }
 .cleanup-total { margin-right: auto; color: var(--ink-2); font-size: .92rem; align-self: center; }
 @media (max-width: 560px) { .notice { flex-wrap: wrap; } .notice .btn { width: 100%; } }
+.usb-tag { display: inline-flex; align-items: center; gap: .25rem; color: var(--accent); }
+.side-badges { display: flex; align-items: center; gap: .8rem; min-width: 0; flex-wrap: wrap; }
+.usb-badge { text-decoration: none; }
+.usb-progress { display: grid; gap: .4rem; margin: .4rem 0 .6rem; }
+.usb-progress i { color: var(--ink-2); }
+.pulse { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
