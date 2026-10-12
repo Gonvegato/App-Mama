@@ -1,5 +1,5 @@
 // Service worker: la app abre sin conexión y guarda los trozos de mapa ya vistos.
-const VERSION = 'cv-1.0.4';
+const VERSION = 'cv-1.0.5';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'mapa-v2';
 const MAX_TILES = 2500;
@@ -16,6 +16,9 @@ self.addEventListener('install', e => {
     self.skipWaiting();
   })());
 });
+
+// Si la app pide activar la versión nueva ya, se hace (sin esperar a cerrar todas las pestañas).
+self.addEventListener('message', e => { if (e.data === 'activar-ya') self.skipWaiting(); });
 
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {

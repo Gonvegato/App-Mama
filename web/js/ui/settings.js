@@ -10,7 +10,7 @@ import qrcode from '../../vendor/qrcode.mjs';
 import { StorageSection } from './storage.js';
 import { UsbSection } from './usb-panel.js';
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 
 function Section({ id, icon, title, children, intro }) {
   return html`<section class="set-section card" id=${`ajustes-${id}`}>

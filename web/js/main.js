@@ -50,6 +50,28 @@ boot().then(() => initUsb()).then(on => {
 });
 
 // Funciona sin conexión y se puede instalar como app (solo en web https).
+// Además, cuando hay una versión nueva publicada, la coge y recarga sola una vez,
+// para que nadie se quede con la versión vieja en la caché.
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  let recargando = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (recargando) return;
+    recargando = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    // Si ya hay una versión nueva esperando, que entre.
+    if (reg.waiting) reg.waiting.postMessage('activar-ya');
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        // Hay versión nueva lista y ya había una app funcionando: se activa (y controllerchange recargará).
+        if (sw.state === 'installed' && navigator.serviceWorker.controller) sw.postMessage('activar-ya');
+      });
+    });
+    // Comprueba si hay versión nueva al abrir y al volver a la app.
+    reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+  }).catch(() => {});
 }
