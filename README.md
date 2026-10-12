@@ -108,7 +108,9 @@ Al añadir o editar un **alojamiento** (y también actividades o restaurantes) h
 
 Es una ayuda: todo se puede **rellenar o corregir a mano**, y el enlace se guarda aunque la página no deje leer nada. La foto es la principal del anuncio, no la galería entera (esa solo la enseña su web o su app). Para enlaces privados de confirmación que piden iniciar sesión puede que no haya foto; el enlace se guarda igual y se abre dentro de la app. En el móvil, para leer la página hace falta el ayudante de Gmail (Ajustes → Correo); en el programa de Windows no.
 
-Los datos de una reserva también se pueden rellenar **desde el correo**: en **Correos**, abre el correo de la reserva y pulsa «Crear reserva con este correo».
+Los datos de una reserva también se rellenan solos **desde el documento**: al subir el **PDF** de la reserva (botón «Subir billete o justificante»), la app lee el nombre, las fechas, el código y el precio y los pone en los campos vacíos (revísalos). Solo funciona con PDF que lleven texto; de una foto o un PDF escaneado no se puede leer.
+
+Y también **desde el correo**: en **Correos**, abre el correo de la reserva y pulsa «Crear reserva con este correo».
 
 ---
 

@@ -9,6 +9,7 @@ import { resizeImage } from '../lib/image.js';
 import { linkPreview, classifyLink, isDesktop } from '../lib/links.js';
 import { gmailConfigured } from '../lib/gmail.js';
 import { geocode } from '../lib/geo.js';
+import { extractPdfText, parseReservationDoc } from '../lib/doc-parse.js';
 
 export function DateTime({ value, onChange, min, defaultTime }) {
   const d = dateOnly(value), t = timeOnly(value);
@@ -87,12 +88,37 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
   const k = RES_KINDS[r.kind];
   const transport = isTransport(r.kind) || r.kind === 'car';
 
+  // Rellena los campos vacíos con lo leído del documento (no pisa lo que ya hay).
+  const applyParsed = async p => {
+    const filled = [];
+    const patch = {};
+    if (p.name && !r.title.trim()) { patch.title = p.name; filled.push('nombre'); }
+    if (p.code && !r.code.trim()) { patch.code = p.code; filled.push('código'); }
+    if (p.provider && !r.provider?.trim()) patch.provider = p.provider;
+    if (p.phone && !r.phone) patch.phone = p.phone;
+    if (p.start && !r.start) { patch.start = p.start; filled.push('fechas'); }
+    if (p.end && !r.end) patch.end = p.end;
+    if (Object.keys(patch).length) set(patch);
+    if (p.price && !parseAmount(price)) { setPrice(String(p.price).replace('.', ',')); if (p.currency) setCurrency(p.currency); filled.push('precio'); }
+    if (r.location?.lat == null && p.name) {
+      try {
+        const hit = (await geocode(`${p.name}${trip.destination ? `, ${trip.destination}` : ''}`, { near, limit: 1 }))[0];
+        if (hit) { set({ location: { lat: hit.lat, lng: hit.lng, name: hit.name || p.name, address: hit.address || '' } }); filled.push('ubicación'); }
+      } catch { /* sin ubicación */ }
+    }
+    return filled;
+  };
+
   const uploadDoc = async () => {
     const files = await pickFiles({ accept: 'image/*,application/pdf,.pdf,.pkpass,.doc,.docx' });
     if (!files.length) return;
     setUploading(true);
+    let firstPdf = null, hadImage = false;
     try {
       for (const f0 of files) {
+        const isPdf = f0.type === 'application/pdf' || /\.pdf$/i.test(f0.name);
+        if (isPdf && !firstPdf) firstPdf = f0;
+        if (f0.type.startsWith('image/')) hadImage = true;
         const f = f0.type.startsWith('image/') ? await resizeImage(f0) : f0;
         const up = await uploadFile(trip.id, 'docs', f, f0.name);
         const doc = { id: sid(), name: f0.name, kind: r.kind === 'hotel' ? 'reserva' : (r.kind === 'activity' ? 'entrada' : 'billete'), path: up.path, mime: up.mime, size: up.size, addedAt: new Date().toISOString() };
@@ -101,6 +127,18 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
       }
     } catch (e) { toast(`No se pudo subir: ${e.message}`, 'error'); }
     setUploading(false);
+    // Autorrelleno desde el PDF de la reserva.
+    if (firstPdf) {
+      try {
+        const text = await extractPdfText(firstPdf);
+        const parsed = parseReservationDoc(text);
+        const filled = await applyParsed(parsed);
+        if (filled.length) toast(`Del documento he rellenado: ${filled.join(', ')}. Revísalo por si acaso.`, 'ok');
+        else toast('He guardado el documento, pero no he podido sacar datos claros de él. Rellénalo a mano.', 'info');
+      } catch { toast('Documento guardado. No he podido leer su texto (quizá es una foto o un PDF escaneado); rellénalo a mano.', 'info'); }
+    } else if (hadImage) {
+      toast('De una foto no puedo leer el texto. Si tienes el PDF de la reserva, súbelo y relleno los datos solos.', 'info');
+    }
   };
 
   const save = () => {
@@ -188,6 +226,7 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
             <${Icon} name=${DOC_KINDS[d.kind]?.icon || 'file'} size=${15} /><span>${d.name}</span></label>`)}
         </div>`}
         <div><${Btn} icon=${uploading ? undefined : 'upload'} size="sm" onClick=${uploadDoc} disabled=${uploading}>${uploading ? html`<${Spinner} size=${14} /> Subiendo…` : 'Subir billete o justificante'}</${Btn}></div>
+        ${!isTransport(r.kind) && html`<p class="muted small">Si subes el <b>PDF</b> de la reserva, relleno solo el nombre, las fechas, el código y el precio que encuentre.</p>`}
       </div>
     </div>
   </${Modal}>`;
