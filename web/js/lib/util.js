@@ -165,7 +165,9 @@ export function fmtSize(bytes) {
   if (!bytes && bytes !== 0) return '';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
+  if (bytes < 1024 ** 3) return `${(bytes / 1024 / 1024).toFixed(bytes < 100 * 1024 * 1024 ? 1 : 0).replace('.', ',')} MB`;
+  const gb = bytes / 1024 ** 3;
+  return `${(gb % 1 === 0 ? gb.toFixed(0) : gb.toFixed(gb < 10 ? 2 : 1)).replace('.', ',')} GB`;
 }
 
 // ---------- Texto ----------

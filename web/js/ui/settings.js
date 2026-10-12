@@ -5,8 +5,9 @@ import { THEMES, TEXT_SIZES } from '../lib/theme.js';
 import { MAP_STYLES } from '../lib/leaflet-loader.js';
 import { useStore, setPrefs, saveSettings, signOut, resetConfig, refresh, exportAll, importTrip, toast, getBackend } from '../lib/store.js';
 import { gmailPing } from '../lib/gmail.js';
-import { downloadBlob, cx, fmtSize, todayISO } from '../lib/util.js';
+import { downloadBlob, cx, todayISO } from '../lib/util.js';
 import qrcode from '../../vendor/qrcode.mjs';
+import { StorageSection } from './storage.js';
 
 const APP_VERSION = '1.0.0';
 
@@ -141,8 +142,6 @@ function Backup() {
 export function Settings({ route }) {
   const s = useStore();
   const prefs = s.prefs;
-  const [usage, setUsage] = useState(null);
-  useEffect(() => { getBackend()?.usage?.().then(setUsage).catch(() => {}); }, []);
   useEffect(() => {
     if (route.section) setTimeout(() => document.getElementById(`ajustes-${route.section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   }, [route.section]);
@@ -183,9 +182,10 @@ export function Settings({ route }) {
           <${Btn} kind="ghost" icon="log-out" onClick=${async () => { if (await confirm('¿Cerrar sesión?', 'Para volver a entrar necesitarás el correo y la contraseña.', { okLabel: 'Cerrar sesión' })) signOut(); }}>Cerrar sesión</${Btn}>
         </div>` : html`
         <p>Modo <b>solo este dispositivo</b>: los viajes se guardan en este ${inApp ? 'ordenador' : 'navegador'} y no se ven en otros.</p>
-        ${usage?.used ? html`<p class="muted small">Espacio usado: ${fmtSize(usage.used)}</p>` : ''}
         <div class="btn-row"><${Btn} icon="cloud" onClick=${async () => { if (await confirm('Conectar con la nube', 'Volverás a la pantalla de inicio para conectar con tu cuenta. Antes, descarga una copia de seguridad para pasar tus viajes (se puede importar después).', { okLabel: 'Continuar' })) resetConfig(); }}>Conectar con la nube</${Btn}></div>`}
     </${Section}>
+
+    <${StorageSection} />
 
     <${Gmail} />
 

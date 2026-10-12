@@ -34,6 +34,8 @@ export const gmailSearch = async (q, max = 30) => (await call('search', { q, max
 export const gmailGet = id => call('get', { id });
 export const gmailAttachment = (id, index) => call('attachment', { id, index });
 export const resolveUrl = url => call('resolve', { url });
+// Trae un archivo o una página a través del ayudante (para mostrarlos dentro de la app).
+export const fetchViaHelper = url => call('fetch', { url });
 
 const gdate = iso => iso.replace(/-/g, '/');
 

@@ -278,7 +278,12 @@ export class CloudBackend {
     const { error } = await this.sb.from('ajustes').upsert({ user_id: id, data: obj, updated_at: new Date().toISOString() });
     if (error) throw new Error(niceError(error));
   }
-  async usage() { return null; }
+  // Espacio que ocupan los archivos (función «uso_archivos» del script SQL).
+  async usage() {
+    const { data, error } = await this.sb.rpc('uso_archivos');
+    if (error) throw new Error(niceError(error));
+    return { used: Number(data) || 0, exact: true };
+  }
 }
 
 export { niceError };

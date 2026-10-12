@@ -5,6 +5,9 @@ import { DOC_KINDS, resTitle } from '../lib/model.js';
 import { updateTrip, uploadFile, removeFiles, fileBlob, toast, keepOffline, offlineFiles, useStore } from '../lib/store.js';
 import { fmtSize, sid, cx, downloadBlob, fileExt, isUrl, matches } from '../lib/util.js';
 import { resizeImage } from '../lib/image.js';
+import { PdfView, needsPdfJs } from './pdf-view.js';
+import { classifyLink, loadLink, readerDoc, forgetLink, isDesktop } from '../lib/links.js';
+import { gmailConfigured } from '../lib/gmail.js';
 
 export function guessDocKind(name = '', mime = '') {
   const n = name.toLowerCase();
@@ -40,6 +43,17 @@ export async function uploadDocs(trip, files, extra = {}) {
   return added;
 }
 
+// Contenido de un PDF: visor del navegador en el ordenador; visor propio en móviles y tabletas.
+function PdfStage({ path, url, name }) {
+  const [blob, setBlob] = useState(null);
+  const [err, setErr] = useState(null);
+  const own = needsPdfJs();
+  useEffect(() => { if (own) fileBlob(path).then(setBlob).catch(e => setErr(e.message)); }, [path]);
+  if (!own) return url ? html`<iframe src=${url} title=${name}></iframe>` : html`<${Spinner} size=${28} />`;
+  if (err) return html`<p class="error pad-y">${err}</p>`;
+  return blob ? html`<${PdfView} blob=${blob} />` : html`<${Spinner} size=${28} />`;
+}
+
 function DocViewer({ close, trip, doc }) {
   const url = useFileUrl(doc.path);
   // Al abrir un documento se guarda una copia para poder verlo sin conexión.
@@ -52,20 +66,75 @@ function DocViewer({ close, trip, doc }) {
   return html`<${Modal} title=${doc.name} close=${close} size="xl" class="viewer"
     footer=${html`
       <${Btn} kind="ghost" icon="edit" onClick=${() => { close(); editDoc(trip, doc); }}>Editar</${Btn}>
-      ${url && html`<a class="btn btn-default" href=${url} target="_blank" rel="noopener"><${Icon} name="external" size=${18} /><span>Abrir aparte</span></a>`}
       <${Btn} kind="primary" icon="download" onClick=${download}>Descargar</${Btn}>`}>
     ${(doc.note || res) && html`<p class="viewer-meta">${res && html`<span><${Icon} name="ticket" size=${15} /> ${resTitle(res)}</span>`}${doc.note && html`<span>${doc.note}</span>`}</p>`}
-    <div class="viewer-stage">
-      ${!url ? html`<${Spinner} size=${28} />`
+    <div class=${cx('viewer-stage', isPdf(doc) && needsPdfJs() && 'viewer-pdf')}>
+      ${isPdf(doc) ? html`<${PdfStage} path=${doc.path} url=${url} name=${doc.name} />`
+        : !url ? html`<${Spinner} size=${28} />`
         : isImage(doc) ? html`<img src=${url} alt=${doc.name} />`
-        : isPdf(doc) ? html`<iframe src=${url} title=${doc.name}></iframe>`
         : html`<${Empty} icon="file" title="Vista previa no disponible" text="Descárgalo para abrirlo con su programa." />`}
     </div>
   </${Modal}>`;
 }
 
+// ---------- Enlaces: se abren dentro de la app ----------
+function LinkStage({ url, info, retry }) {
+  const [st, setSt] = useState({ phase: 'loading' });
+  const [imgUrl, setImgUrl] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setSt({ phase: 'loading' });
+    if (info.kind === 'embed') { setSt({ phase: 'frame', src: info.src }); return; }
+    // En escritorio las webs se muestran tal cual (el programa quita el bloqueo de marcos).
+    if (isDesktop() && info.kind === 'page') { setSt({ phase: 'frame', src: info.src }); return; }
+    loadLink(url, info, { allowCache: retry === 0 }).then(r => {
+      if (!alive) return;
+      if (r.type === 'pdf') setSt({ phase: 'pdf', blob: r.blob });
+      else if (r.type === 'image') { const u = URL.createObjectURL(r.blob); setImgUrl(u); setSt({ phase: 'image', src: u }); }
+      else if (r.type === 'html') setSt(r.frameable && navigator.onLine ? { phase: 'frame', src: r.finalUrl || info.src } : { phase: 'reader', doc: readerDoc(r.html, r.finalUrl || info.src), cached: r.cached });
+      else if (r.type === 'text') setSt({ phase: 'text', text: r.text });
+      else setSt({ phase: 'download', blob: r.blob });
+    }).catch(() => {
+      if (!alive) return;
+      // Último intento: mostrar la web directamente (muchas lo permiten).
+      setSt({ phase: 'frame', src: info.src, uncertain: true });
+    });
+    return () => { alive = false; };
+  }, [url, retry]);
+  useEffect(() => () => imgUrl && URL.revokeObjectURL(imgUrl), [imgUrl]);
+  if (st.phase === 'loading') return html`<div class="pdf-msg"><${Spinner} size=${26} /><span class="muted small">Abriendo…</span></div>`;
+  if (st.phase === 'pdf') return html`<${PdfView} blob=${st.blob} />`;
+  if (st.phase === 'image') return html`<img src=${st.src} alt="" />`;
+  if (st.phase === 'text') return html`<pre class="link-text">${st.text}</pre>`;
+  if (st.phase === 'download') return html`<${Empty} icon="file" title="Archivo listo" text="Este tipo de archivo no se puede mostrar aquí, pero puedes descargarlo.">
+      <${Btn} kind="primary" icon="download" onClick=${() => downloadBlob(st.blob, (url.split('/').pop() || 'archivo').split('?')[0])}>Descargar</${Btn}></${Empty}>`;
+  if (st.phase === 'reader') return html`<div class="link-reader">
+      <p class="link-note"><${Icon} name="info" size=${15} /> Vista de lectura${st.cached && !navigator.onLine ? ' guardada (sin conexión)' : ''}: algunas partes de la web pueden faltar.</p>
+      <iframe class="mail-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc=${st.doc} title="Página"></iframe></div>`;
+  return html`<div class="link-reader">
+      ${st.uncertain && html`<p class="link-note"><${Icon} name="info" size=${15} /> Si la página sale en blanco, esta web no deja mostrarse dentro de otras apps: usa «Abrir en el navegador».${!gmailConfigured() ? ' Con el ayudante de Gmail conectado, la app puede abrir más webs por dentro.' : ''}</p>`}
+      <iframe class="mail-frame" src=${st.src} title="Página" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe></div>`;
+}
+
+function LinkViewer({ close, trip, doc }) {
+  const info = classifyLink(doc.url);
+  const [retry, setRetry] = useState(0);
+  const res = trip.reservations.find(r => r.id === doc.resId);
+  const host = (() => { try { return new URL(doc.url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+  return html`<${Modal} title=${doc.name || host} close=${close} size="xl" class="viewer"
+    footer=${html`
+      <${Btn} kind="ghost" icon="edit" onClick=${() => { close(); editDoc(trip, doc); }}>Editar</${Btn}>
+      ${info.kind !== 'embed' && html`<${Btn} kind="ghost" icon="refresh" onClick=${() => { forgetLink(doc.url); setRetry(n => n + 1); }}>Recargar</${Btn}>`}
+      <a class="btn btn-default" href=${doc.url} target="_blank" rel="noopener"><${Icon} name="external" size=${18} /><span>Abrir en el navegador</span></a>`}>
+    <p class="viewer-meta"><span><${Icon} name="link" size=${15} /> ${info.service || host}</span>${res && html`<span><${Icon} name="ticket" size=${15} /> ${resTitle(res)}</span>`}${doc.note && html`<span>${doc.note}</span>`}</p>
+    <div class="viewer-stage viewer-link">
+      <${LinkStage} url=${doc.url} info=${info} retry=${retry} key=${retry} />
+    </div>
+  </${Modal}>`;
+}
+
 export function openDoc(trip, doc) {
-  if (doc.kind === 'enlace' || (!doc.path && doc.url)) { window.open(doc.url, '_blank', 'noopener'); return; }
+  if (doc.kind === 'enlace' || (!doc.path && doc.url)) return openModal(LinkViewer, { trip, doc });
   return openModal(DocViewer, { trip, doc });
 }
 

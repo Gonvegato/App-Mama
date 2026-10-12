@@ -1,9 +1,9 @@
 // Crear y editar un viaje: nombre, destino, fechas, viajeros y portada.
 import { html, useState } from '../../vendor/preact-htm.js';
-import { Modal, Btn, Field, Icon, pickFiles, Spinner } from './kit.js';
+import { Modal, Btn, Field, Icon, pickFiles, Spinner, confirm } from './kit.js';
 import { Cover, presetById } from './cover.js';
 import { COVER_PRESETS } from '../lib/model.js';
-import { createTrip, updateTrip, uploadFile, removeFiles, toast, getTrip } from '../lib/store.js';
+import { createTrip, updateTrip, uploadFile, removeFiles, toast, getTrip, deleteTrip } from '../lib/store.js';
 import { resizeImage } from '../lib/image.js';
 import { geocode } from '../lib/geo.js';
 import { uid, cx, daysBetween } from '../lib/util.js';
@@ -102,8 +102,17 @@ export function TripForm({ close, trip }) {
     close(false);
   };
 
+  const removeThis = async () => {
+    if (!await confirm('¿Borrar este viaje?', `Se borrará «${trip.title || trip.destination}» con todos sus documentos, correos guardados y notas. No se puede deshacer.`, { okLabel: 'Borrar', danger: true })) return;
+    if (f.cover?.type === 'image' && f.cover.path !== trip.cover?.path) removeFiles([f.cover.path, f.cover.thumbPath].filter(Boolean));
+    close(false); go('/'); await deleteTrip(trip.id); toast('Viaje borrado', 'ok');
+  };
+
   return html`<${Modal} title=${editing ? 'Editar viaje' : 'Nuevo viaje'} close=${cancel} size="lg" onSubmit=${save}
-    footer=${html`<${Btn} kind="ghost" onClick=${cancel}>Cancelar</${Btn}><${Btn} kind="primary" type="submit" disabled=${saving}>${editing ? 'Guardar cambios' : 'Crear viaje'}</${Btn}>`}>
+    footer=${html`${editing
+        ? html`<${Btn} kind="ghost" icon="trash" class="btn-danger-text" onClick=${removeThis}>Borrar viaje</${Btn}>`
+        : html`<${Btn} kind="ghost" onClick=${cancel}>Cancelar</${Btn}>`}
+      <${Btn} kind="primary" type="submit" disabled=${saving}>${editing ? 'Guardar cambios' : 'Crear viaje'}</${Btn}>`}>
     <div class="form-grid trip-form">
       <div class="form-col">
         <${Field} label="Nombre del viaje"><input class="input input-lg" value=${f.title} onInput=${e => set({ title: e.target.value })} placeholder="Ej.: Primavera en Lisboa" autofocus /></${Field}>

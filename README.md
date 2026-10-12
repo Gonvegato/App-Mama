@@ -10,7 +10,7 @@ Cada viaje tiene **portada, fechas y viajeros**, y estas secciones:
 | **Itinerario** | El viaje día a día: vuelos, entrada y salida del hotel, actividades, lugares asignados a cada día y planes propios con hora. |
 | **Mapa** | Lugares por categorías, alojamientos, vuelos (con su curva real) y rutas. Buscador de sitios, «Añadir punto» tocando el mapa, filtro por día, «Cómo llegar» con Google Maps o Apple Maps y la ubicación actual. |
 | **Reservas** | Vuelos (con buscador de aeropuertos), alojamientos, trenes, autobuses, barcos, coches de alquiler, entradas y restaurantes, con su código de reserva (se copia con un toque), precio y billetes adjuntos. |
-| **Documentos** | Billetes, tarjetas de embarque, entradas, guías, seguros, fotos y enlaces. Vista previa de PDF e imágenes, descarga y arrastrar y soltar. |
+| **Documentos** | Billetes, tarjetas de embarque, entradas, guías, seguros, fotos y enlaces. Todo se abre dentro de la app: visor de PDF propio (también en el móvil), enlaces de Google Drive, Docs, YouTube, Dropbox, pCloud, PDF y webs. Descarga, arrastrar y soltar, y copia para verlos sin conexión. |
 | **Correos** | Busca en Gmail los correos del viaje (búsqueda preparada con el destino, las fechas y los códigos de las reservas) y los guarda en el viaje junto con sus adjuntos. |
 | **Maleta** | Lista con plantillas (esencial, ropa, aseo, playa, frío, avión), grupos propios y copiar la maleta de otro viaje. |
 | **Gastos** | Presupuesto, gastos por categorías, precios de las reservas sumados solos y cuentas entre viajeros. |
@@ -66,7 +66,7 @@ La conexión con Gmail se hace con un pequeño script de Google que se instala *
 4. **Implementar → Nueva implementación** (*Deploy → New deployment*) → tipo **Aplicación web** (*Web app*). *Ejecutar como*: **Yo** (*Me*). *Quién tiene acceso*: **Cualquier usuario** (*Anyone*). Copia la URL que termina en `/exec`.
 5. En la app: **Ajustes → Correo (Gmail)** → pega la URL y la clave → **Guardar y probar**. Se guarda en la nube, así que en el móvil ya funciona.
 
-El ayudante también sirve para abrir **enlaces cortos** de Google Maps (`maps.app.goo.gl`) y Apple Maps (`maps.apple`) al importar.
+El ayudante también sirve para abrir **enlaces cortos** de Google Maps (`maps.app.goo.gl`) y Apple Maps (`maps.apple`) al importar, y para que los **enlaces guardados** (enlaces públicos de pCloud, PDF y webs que no se dejan mostrar dentro de otras apps) se abran dentro de la app en el móvil. En el programa de Windows no hace falta: ahí se abren dentro siempre.
 
 ### 6. Que la base de datos no se «duerma»
 
@@ -94,7 +94,7 @@ En **Mapa → Importar** hay una pestaña «Cómo exportar» con estas mismas in
 - **Estado de los vuelos en directo:** no está incluido (los servicios fiables son de pago).
 - **El tiempo:** solo hay previsión real hasta 16 días vista (Open-Meteo). Para viajes más lejanos no se muestra nada en vez de inventar.
 - **Búsqueda de lugares:** usa OpenStreetMap (Nominatim), que solo permite búsquedas al pulsar «Buscar» y una por segundo. Por eso no autocompleta mientras se escribe.
-- **Espacio:** el plan gratuito de Supabase incluye 1 GB para archivos y 500 MB de base de datos; las fotos se reducen antes de subirlas. Archivos de hasta 50 MB.
+- **Espacio:** el plan gratuito de Supabase incluye 1 GB para archivos y 500 MB de base de datos; las fotos se reducen antes de subirlas. Archivos de hasta 50 MB. En **Ajustes → Espacio para archivos** se ve lo usado, aparece un aviso al 80 % y **«Liberar espacio»** lista todos los archivos de mayor a menor para borrar los que sobren. Las guías grandes se pueden guardar como enlace y no ocupan nada.
 - **Sin conexión:** se ve todo lo ya cargado (incluidos los trozos de mapa visitados en el móvil), pero los documentos y correos guardados necesitan conexión para abrirse.
 
 ---

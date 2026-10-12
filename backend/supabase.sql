@@ -61,3 +61,19 @@ create policy "archivos: cambiar los míos" on storage.objects for update to aut
   using (bucket_id = 'viajes' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "archivos: borrar los míos" on storage.objects for delete to authenticated
   using (bucket_id = 'viajes' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- 5. Espacio usado por los archivos (para el indicador de Ajustes) -----------
+create or replace function public.uso_archivos()
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(sum((metadata->>'size')::bigint), 0)
+  from storage.objects
+  where bucket_id = 'viajes'
+    and (storage.foldername(name))[1] = (select auth.uid())::text;
+$$;
+revoke all on function public.uso_archivos() from public, anon;
+grant execute on function public.uso_archivos() to authenticated;

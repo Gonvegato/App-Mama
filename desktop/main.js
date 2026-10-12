@@ -115,17 +115,44 @@ app.whenReady().then(() => {
   });
 
   const referer = siteUrl();
-  session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: ['https://*.openstreetmap.org/*', 'https://photon.komoot.io/*'] },
-    (details, cb) => {
-      details.requestHeaders['Referer'] = referer;
-      details.requestHeaders['User-Agent'] = `CuadernoDeViajes/${app.getVersion()} (${referer})`;
-      cb({ requestHeaders: details.requestHeaders });
-    },
-  );
-  session.defaultSession.setSpellCheckerLanguages(['es-ES']);
+  const ses = session.defaultSession;
+  const isPcloud = u => /^https:\/\/([a-z0-9-]+\.)*pcloud\.(com|link)\//i.test(u);
+  // Cabeceras de salida: identificación para OpenStreetMap; pCloud solo atiende si la petición «viene» de su web.
+  ses.webRequest.onBeforeSendHeaders({ urls: ['<all_urls>'] }, (details, cb) => {
+    const h = details.requestHeaders;
+    if (/^https:\/\/([a-z0-9-]+\.)*openstreetmap\.org\/|^https:\/\/photon\.komoot\.io\//i.test(details.url)) {
+      h['Referer'] = referer;
+      h['User-Agent'] = `CuadernoDeViajes/${app.getVersion()} (${referer})`;
+    } else if (isPcloud(details.url)) {
+      h['Referer'] = 'https://my.pcloud.com/';
+      h['Origin'] = 'https://my.pcloud.com';
+    }
+    cb({ requestHeaders: h });
+  });
+  // Cabeceras de entrada: para que los enlaces guardados se vean siempre dentro del programa.
+  const drop = (headers, name) => { for (const k of Object.keys(headers)) if (k.toLowerCase() === name) delete headers[k]; };
+  const has = (headers, name) => Object.keys(headers).some(k => k.toLowerCase() === name);
+  ses.webRequest.onHeadersReceived({ urls: ['<all_urls>'] }, (details, cb) => {
+    const h = details.responseHeaders || {};
+    if (details.resourceType === 'subFrame') {
+      // Webs que prohíben mostrarse dentro de otra página.
+      drop(h, 'x-frame-options');
+      for (const k of Object.keys(h)) {
+        if (k.toLowerCase() === 'content-security-policy') {
+          h[k] = h[k].map(v => v.split(';').filter(d => !/^\s*frame-ancestors/i.test(d)).join(';'));
+        }
+      }
+    }
+    if ((details.resourceType === 'xhr' && /^app:\/\/cuaderno/.test(details.referrer || '')) || isPcloud(details.url)) {
+      // Descargas que pide la propia app (PDF y fotos de enlaces guardados).
+      if (isPcloud(details.url)) { drop(h, 'access-control-allow-origin'); h['Access-Control-Allow-Origin'] = ['*']; }
+      else if (!has(h, 'access-control-allow-origin')) h['Access-Control-Allow-Origin'] = ['*'];
+    }
+    cb({ responseHeaders: h });
+  });
+  ses.setSpellCheckerLanguages(['es-ES']);
   // Solo se conceden los permisos que usa la app (ubicación en el mapa y portapapeles).
-  session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => {
+  ses.setPermissionRequestHandler((wc, permission, cb) => {
     cb(['geolocation', 'clipboard-read', 'clipboard-sanitized-write', 'fullscreen'].includes(permission));
   });
 

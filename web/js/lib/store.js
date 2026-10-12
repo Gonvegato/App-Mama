@@ -349,14 +349,50 @@ export async function deleteTrip(id) {
 // ---------------- Archivos ----------------
 export async function uploadFile(tripId, folder, file, nameOverride) {
   const name = nameOverride || file.name || `archivo.${fileExt(file.type) || 'bin'}`;
+  if (state.mode === 'cloud') {
+    const u = LS.get('cv-usage', null);
+    if (u && u.used + (file.size || 0) > storageLimit()) throw new Error('No queda espacio para archivos en la nube. Mira Ajustes → Cuenta para liberar espacio o ampliar el plan.');
+    if ((file.size || 0) > 50 * 1024 * 1024) throw new Error('El archivo pesa más de 50 MB. Guárdalo mejor como enlace.');
+  }
   const path = `${tripId}/${folder}/${sid()}-${safeFileName(name)}`;
   await backend.upload(path, file, file.type);
+  const u2 = LS.get('cv-usage', null);
+  if (u2) LS.set('cv-usage', { ...u2, used: u2.used + (file.size || 0) });
   return { path, name, mime: file.type || '', size: file.size || 0 };
 }
 export const fileUrl = path => backend.fileUrl(path);
 export const fileUrls = paths => backend.fileUrls(paths);
 export const fileBlob = path => backend.fileBlob(path);
-export const removeFiles = paths => backend.removeFiles(paths).catch(() => {});
+export const removeFiles = paths => backend.removeFiles(paths).catch(() => {}).finally(() => LS.del('cv-usage'));
+
+// ---------------- Espacio para archivos ----------------
+export const STORAGE_PLANS = { free: { label: 'Gratuito', bytes: 1024 ** 3 }, pro: { label: 'Pro', bytes: 100 * 1024 ** 3 } };
+export const storageLimit = () => (STORAGE_PLANS[state.settings?.storagePlan] || STORAGE_PLANS.free).bytes;
+
+// Suma de lo que se sabe por los propios viajes (si la función del servidor no está disponible).
+function estimateUsage() {
+  let used = 0;
+  for (const t of state.trips) {
+    for (const d of t.docs) used += d.size || 0;
+    if (t.cover?.type === 'image') used += 600 * 1024;
+    used += t.emails.length * 80 * 1024;
+  }
+  return { used, exact: false };
+}
+
+export async function storageUsage({ fresh = false } = {}) {
+  const c = LS.get('cv-usage', null);
+  if (!fresh && c && Date.now() - c.at < 6 * 3600 * 1000) return c;
+  let u;
+  if (state.mode === 'cloud') {
+    try { u = await backend.usage(); } catch { u = estimateUsage(); }
+  } else {
+    u = (await backend.usage().catch(() => null)) || estimateUsage();
+  }
+  const out = { ...u, at: Date.now() };
+  LS.set('cv-usage', out);
+  return out;
+}
 export const keepOffline = path => backend.keepOffline(path);
 export { offlineFiles } from './backend.js';
 

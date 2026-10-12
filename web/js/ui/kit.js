@@ -1,5 +1,5 @@
 // Piezas de interfaz reutilizables.
-import { html, useState, useEffect, useRef, useCallback, useLayoutEffect } from '../../vendor/preact-htm.js';
+import { html, render, useState, useEffect, useRef, useCallback, useLayoutEffect } from '../../vendor/preact-htm.js';
 import { ICONS } from '../lib/icon-data.js';
 import { toasts, dismissToast, fileUrl } from '../lib/store.js';
 import { cx, sid } from '../lib/util.js';
@@ -63,23 +63,56 @@ export function Segmented({ value, options, onChange }) {
 }
 
 // ---------- Menú desplegable ----------
+// El menú se dibuja aparte, encima de todo, para que ninguna portada o lista lo recorte.
+function MenuPop({ items, anchor, align, close }) {
+  const ref = useRef();
+  const [pos, setPos] = useState(null);
+  useLayoutEffect(() => {
+    const r = anchor.getBoundingClientRect();
+    const el = ref.current;
+    const w = el.offsetWidth, h = el.offsetHeight, vw = window.innerWidth, vh = window.innerHeight, m = 8;
+    let left = align === 'left' ? r.left : r.right - w;
+    left = Math.max(m, Math.min(left, vw - w - m));
+    let top = r.bottom + 6;
+    if (top + h > vh - m && r.top - 6 - h > m) top = r.top - 6 - h; // si no cabe debajo, encima
+    top = Math.max(m, Math.min(top, vh - h - m));
+    setPos({ left, top });
+  }, []);
+  useEffect(() => {
+    const onDown = e => { if (!ref.current?.contains(e.target) && !anchor.contains(e.target)) close(); };
+    const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    const onMove = e => { if (!ref.current?.contains(e.target)) close(); };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('resize', onMove);
+    document.addEventListener('scroll', onMove, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('resize', onMove);
+      document.removeEventListener('scroll', onMove, true);
+    };
+  }, []);
+  return html`<div class="menu-pop" role="menu" ref=${ref} style=${pos ? `left:${pos.left}px;top:${pos.top}px` : 'visibility:hidden;left:0;top:0'}>
+    ${items.filter(Boolean).map(it => it === '-' ? html`<hr />` : html`<button type="button" role="menuitem" class=${cx('menu-item', it.danger && 'is-danger')} onClick=${() => { close(); it.onClick(); }}>
+      ${it.icon && html`<${Icon} name=${it.icon} size=${16} />`}<span>${it.label}</span></button>`)}
+  </div>`;
+}
+
 export function Menu({ icon = 'more', label = 'Más opciones', items, align = 'right', button }) {
   const [open, setOpen] = useState(false);
   const ref = useRef();
   useEffect(() => {
     if (!open) return;
-    const close = e => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } };
-    document.addEventListener('pointerdown', close);
-    document.addEventListener('keydown', esc, true);
-    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', esc, true); };
+    const host = document.createElement('div');
+    host.className = 'menu-layer';
+    document.body.appendChild(host);
+    render(html`<${MenuPop} items=${items} anchor=${ref.current} align=${align} close=${() => setOpen(false)} />`, host);
+    return () => { render(null, host); host.remove(); };
   }, [open]);
+  useEffect(() => () => setOpen(false), []);
   return html`<div class="menu" ref=${ref}>
     ${button ? button(() => setOpen(o => !o)) : html`<${IconBtn} icon=${icon} label=${label} onClick=${() => setOpen(o => !o)} />`}
-    ${open && html`<div class=${cx('menu-pop', `menu-${align}`)} role="menu">
-      ${items.filter(Boolean).map(it => it === '-' ? html`<hr />` : html`<button type="button" role="menuitem" class=${cx('menu-item', it.danger && 'is-danger')} onClick=${() => { setOpen(false); it.onClick(); }}>
-        ${it.icon && html`<${Icon} name=${it.icon} size=${16} />`}<span>${it.label}</span></button>`)}
-    </div>`}
   </div>`;
 }
 

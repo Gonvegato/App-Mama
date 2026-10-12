@@ -5,6 +5,7 @@ import { Cover } from './cover.js';
 import { TripForm } from './trip-form.js';
 import { SyncBadge } from './sidebar.js';
 import { AgendaItem } from './tab-itinerary.js';
+import { StorageWarning } from './storage.js';
 import { useStore } from '../lib/store.js';
 import { sortTrips, buildAgenda, tripStats } from '../lib/model.js';
 import { fmtRange, tripStatus, greeting, fmtDate, todayISO, plural } from '../lib/util.js';
@@ -110,6 +111,7 @@ export function Home() {
         <h1>${greeting()}</h1>
       </div>
     </header>
+    <${StorageWarning} />
 
     ${!trips.length ? html`
       <div class="welcome">
