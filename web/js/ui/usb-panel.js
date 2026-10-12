@@ -18,6 +18,7 @@ export function UsbSection() {
   return html`<section class="set-section card" id="ajustes-usb">
     <h2><${Icon} name="hard-drive" size=${20} /> Copia en el USB</h2>
     <p class="muted">El programa se está usando desde un USB. Todos los archivos de los viajes (los subidos y los que están en enlaces, como guías y PDF) se copian solos a la carpeta <b>«Archivos de viajes»</b> del USB, ordenados por viaje. Así se abren desde aquí, rápido y aunque no haya internet. El original sigue en la nube o en el enlace, y en el móvil todo funciona igual.</p>
+    ${u.info?.detached && html`<p class="muted small"><${Icon} name="info" size=${15} /> El programa se está abriendo desde una copia en el disco de este ordenador, pero la sesión y los archivos se guardan en el USB. En este ordenador no queda nada.</p>`}
     ${u.running ? html`<div class="usb-progress"><${Spinner} size=${16} /> Copiando ${Math.min(u.done + 1, u.total)} de ${u.total}${u.current ? html`: <i>${u.current}</i>` : ''}<${Progress} value=${u.done} max=${u.total || 1} label="Copia al USB" /></div>`
       : html`<p><b>${t.count}</b> ${t.count === 1 ? 'archivo' : 'archivos'} en el USB · ${fmtSize(t.bytes)}${free != null ? html` · <span class="muted">quedan ${fmtSize(free)} libres de ${fmtSize(total)}</span>` : ''}</p>
         ${u.errors > 0 && html`<p class="muted small">${u.errors} ${u.errors === 1 ? 'archivo no se ha podido copiar' : 'archivos no se han podido copiar'} (por ejemplo, enlaces que ya no funcionan). Se volverá a intentar más tarde.</p>`}`}

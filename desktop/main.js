@@ -22,7 +22,29 @@ function siteUrl() {
 // Si junto al programa hay un archivo «modo-usb.txt», todo (sesión, ajustes y copias de
 // los archivos) se guarda en el propio USB y se puede llevar de un ordenador a otro.
 const EXE_DIR = path.dirname(process.execPath);
-const USB_ROOT = process.env.CUADERNO_USB || (fs.existsSync(path.join(EXE_DIR, 'modo-usb.txt')) ? path.resolve(EXE_DIR, '..') : null);
+
+// Una carpeta es «la raíz del USB» si tiene el programa (con su marca) y la carpeta de archivos.
+function looksLikeUsbRoot(root) {
+  try {
+    return fs.existsSync(path.join(root, 'Cuaderno de viajes', 'modo-usb.txt'))
+      && fs.existsSync(path.join(root, 'Archivos de viajes'));
+  } catch { return false; }
+}
+
+// Si el programa se ha copiado al disco del ordenador (porque ese PC no deja abrirlo desde el
+// USB), al arrancar busca el USB enchufado y sigue guardando ahí la sesión y los archivos.
+function findDetachedUsb() {
+  if (process.platform !== 'win32') return null;
+  for (let c = 68; c <= 90; c++) { // D: … Z: (la C: suele ser el disco del PC)
+    const root = `${String.fromCharCode(c)}:\\`;
+    if (looksLikeUsbRoot(root)) return root;
+  }
+  return null;
+}
+
+const FROM_USB = fs.existsSync(path.join(EXE_DIR, 'modo-usb.txt'));
+const DETACHED = !FROM_USB && !process.env.CUADERNO_USB ? findDetachedUsb() : null;
+const USB_ROOT = process.env.CUADERNO_USB || (FROM_USB ? path.resolve(EXE_DIR, '..') : DETACHED);
 const USB_FILES = USB_ROOT ? path.join(USB_ROOT, 'Archivos de viajes') : null;
 if (USB_ROOT) {
   app.setPath('userData', path.join(USB_ROOT, 'Cuaderno de viajes', 'Datos'));
@@ -41,7 +63,7 @@ function setupUsbIpc() {
     if (!USB_ROOT) return { enabled: false };
     let free = null, total = null;
     try { const st = fs.statfsSync(USB_ROOT); free = st.bavail * st.bsize; total = st.blocks * st.bsize; } catch { /* sin datos */ }
-    return { enabled: true, free, total, folder: USB_FILES };
+    return { enabled: true, free, total, folder: USB_FILES, detached: !!DETACHED };
   });
   ipcMain.handle('usb:write', async (_e, rel, data) => {
     const full = usbPath(rel);
