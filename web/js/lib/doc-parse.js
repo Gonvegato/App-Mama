@@ -61,7 +61,7 @@ function dateNear(text, labels) {
   for (const lab of labels) {
     let i = low.indexOf(lab);
     while (i >= 0) {
-      const win = text.slice(i, i + lab.length + 60);
+      const win = text.slice(i, i + lab.length + 90);
       const m = win.match(DATE_RE);
       if (m) { const iso = parseDate(m[0]); if (iso) return iso; }
       i = low.indexOf(lab, i + 1);
@@ -70,11 +70,44 @@ function dateNear(text, labels) {
   return '';
 }
 
+// Tipo de reserva a partir del texto (alojamiento, vuelo, tren…). Devuelve una clave de RES_KINDS o null.
+// El alojamiento va primero porque los correos de hotel suelen incluir anuncios de vuelos o coches.
+export function guessReservationKind(text) {
+  const t = String(text || '').toLowerCase().replace(/ /g, ' ');
+  const has = re => re.test(t);
+  if (has(/\b(hotel|hostal|hostel|aparthotel|apartament(?:o|os)?|alojamiento|casa rural|caser[ií]o|agroturismo|pensi[oó]n|albergue|parador|guest\s?house|resort|bed and breakfast|habitaci[oó]n(?:es)?|check-?in|noches?)\b|booking\.com|airbnb/)) return 'hotel';
+  if (has(/\b(vuelo|vuelos|flight|boarding pass|tarjeta de embarque|e-?ticket|aerol[ií]nea|puerta de embarque|localizador de vuelo)\b|iberia|ryanair|vueling|easyjet|air europa|lufthansa/)) return 'flight';
+  if (has(/\b(tren|trenes|renfe|ouigo|iryo|ave|alta velocidad|rail|train|estaci[oó]n de tren)\b/)) return 'train';
+  if (has(/\b(autob[uú]s|autocar)\b|\balsa\b|flixbus|blablabus/)) return 'bus';
+  if (has(/\b(ferry|crucero|naviera)\b|balearia|trasmediterr[aá]nea/)) return 'ferry';
+  if (has(/\b(alquiler de coche|coche de alquiler|rent a car|car rental|rental car)\b|europcar|\bhertz\b|\bavis\b|\bsixt\b|goldcar/)) return 'car';
+  if (has(/\b(restaurante|restaurant|mesa para \d|reserva de mesa|men[uú] degustaci[oó]n)\b|thefork|the fork|opentable/)) return 'restaurant';
+  if (has(/\b(entrada|entradas|ticket|tickets|museo|tour|excursi[oó]n|actividad|visita guiada|espect[aá]culo|concierto)\b/)) return 'activity';
+  return null;
+}
+
+// Limpia el nombre del alojamiento: quita «el/la», coletillas como «está confirmada» y signos sueltos.
+function cleanName(s) {
+  if (!s) return s;
+  let n = s.replace(/\s{2,}/g, ' ').trim();
+  // Coletilla «… está confirmada / is confirmed». Los PDF a veces parten las palabras
+  // («con fi rmada»), así que se mira el final sin espacios para reconocerla.
+  const tail = /\s+(est[aá]|is|was|has been|ya)(?=\s|$)([\s\S]*)$/i.exec(n);
+  if (tail && /confirm|reserv|book/i.test(tail[2].replace(/\s+/g, ''))) n = n.slice(0, tail.index);
+  n = n.replace(/[\s,.;:–-]+$/, '');
+  n = n.replace(/^(el|la|los|las|the)\s+/i, '');
+  return n.trim();
+}
+
 // Analiza el texto de una reserva y devuelve los campos que encuentra con seguridad.
 export function parseReservationDoc(text) {
-  const t = String(text || '').replace(/ /g, ' ');
+  // Se juntan los espacios/tabuladores sobrantes (los PDF dejan huecos enormes) pero se conservan los saltos de línea.
+  const t = String(text || '').replace(/ /g, ' ').replace(/[ \t]{2,}/g, ' ');
   const low = t.toLowerCase();
   const out = {};
+
+  const kind = guessReservationKind(t);
+  if (kind) out.kind = kind;
 
   const code = t.match(/(?:c[oó]digo de (?:reserva|confirmaci[oó]n)|confirmation (?:number|code|no\.?)|n[uú]mero de confirmaci[oó]n|booking (?:number|reference|ref\.?)|localizador|reservation (?:code|number))\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{4,})/i);
   if (code) out.code = code[1].toUpperCase().replace(/-+$/, '');
@@ -83,12 +116,13 @@ export function parseReservationDoc(text) {
   const co = dateNear(t, ['check-out', 'check out', 'salida', 'departure']);
   if (ci) out.start = ci;
   if (co) out.end = co;
-  // Si no hay etiquetas pero sí dos fechas, se asumen entrada y salida (orden del documento).
-  if (!ci || !co) {
+  // Si NO hay ninguna etiqueta (ni entrada ni salida) pero sí dos fechas, se asumen entrada y salida.
+  // Si alguna etiqueta sí apareció, nos fiamos solo de ellas: así no se cuela la fecha de envío del correo.
+  if (!ci && !co) {
     const all = [...t.matchAll(DATE_RE)].map(m => parseDate(m[0])).filter(Boolean);
     const uniq = [...new Set(all)].sort();
-    if (!out.start && uniq[0]) out.start = uniq[0];
-    if (!out.end && uniq[1]) out.end = uniq[uniq.length - 1];
+    if (uniq[0]) out.start = uniq[0];
+    if (uniq[1]) out.end = uniq[uniq.length - 1];
   }
 
   const price = t.match(/(?:precio total|total(?:\s+a pagar|\s+price|\s+amount)?|importe(?:\s+total)?|amount)\s*[:]?\s*(?:([€$£])\s?)?(\d[\d.,]*)\s?(eur|usd|gbp|€|\$|£)?/i);
@@ -112,10 +146,11 @@ export function parseReservationDoc(text) {
 
   // Nombre del alojamiento: la línea cercana a «tu reserva en …» o la primera con palabra de alojamiento.
   const near = t.match(/(?:tu reserva en|your (?:booking|reservation) (?:at|for)|reserva en|estancia en)\s*[:]?\s*([^\n]{3,70})/i);
-  if (near) out.name = near[1].trim().replace(/\s{2,}/g, ' ');
-  if (!out.name) {
-    for (const line of t.split('\n').map(s => s.trim()).slice(0, 25)) {
-      if (line.length >= 4 && line.length <= 70 && /\b(hotel|hostal|hostel|apartament|apartment|apartamento|aparthotel|guesthouse|casa|villa|resort|b&b|bed (and|&) breakfast|pensi[oó]n|albergue|lodge|suites?)\b/i.test(line) && !/booking\.com|airbnb|política|policy|cancel/i.test(line)) { out.name = line; break; }
+  if (near) out.name = cleanName(near[1]);
+  // Si el nombre sigue sin salir o quedó sospechoso, se busca la primera línea con palabra de alojamiento.
+  if (!out.name || /confirmad|reserva/i.test(out.name)) {
+    for (const line of t.split('\n').map(s => s.trim()).slice(0, 30)) {
+      if (line.length >= 4 && line.length <= 70 && /\b(hotel|hostal|hostel|apartament|apartment|apartamento|aparthotel|guesthouse|casa|villa|resort|b&b|bed (and|&) breakfast|pensi[oó]n|albergue|lodge|suites?)\b/i.test(line) && !/booking\.com|airbnb|política|policy|cancel|confirmad/i.test(line)) { out.name = cleanName(line); break; }
     }
   }
   return out;

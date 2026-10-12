@@ -92,6 +92,10 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
   const applyParsed = async p => {
     const filled = [];
     const patch = {};
+    // Si el documento dice claramente el tipo (p. ej. alojamiento) y la reserva es nueva y vacía, se corrige el tipo.
+    if (p.kind && !editing && p.kind !== r.kind && !r.title.trim() && !r.code.trim() && !r.start && !r.provider?.trim()) {
+      patch.kind = p.kind; filled.push('tipo');
+    }
     if (p.name && !r.title.trim()) { patch.title = p.name; filled.push('nombre'); }
     if (p.code && !r.code.trim()) { patch.code = p.code; filled.push('código'); }
     if (p.provider && !r.provider?.trim()) patch.provider = p.provider;
@@ -113,7 +117,7 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
     const files = await pickFiles({ accept: 'image/*,application/pdf,.pdf,.pkpass,.doc,.docx' });
     if (!files.length) return;
     setUploading(true);
-    let firstPdf = null, hadImage = false;
+    let firstPdf = null, firstPdfDocId = null, hadImage = false;
     try {
       for (const f0 of files) {
         const isPdf = f0.type === 'application/pdf' || /\.pdf$/i.test(f0.name);
@@ -122,6 +126,7 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
         const f = f0.type.startsWith('image/') ? await resizeImage(f0) : f0;
         const up = await uploadFile(trip.id, 'docs', f, f0.name);
         const doc = { id: sid(), name: f0.name, kind: r.kind === 'hotel' ? 'reserva' : (r.kind === 'activity' ? 'entrada' : 'billete'), path: up.path, mime: up.mime, size: up.size, addedAt: new Date().toISOString() };
+        if (isPdf && !firstPdfDocId) firstPdfDocId = doc.id;
         setNewDocs(d => [...d, doc]);
         setR(s => ({ ...s, docIds: [...s.docIds, doc.id] }));
       }
@@ -133,6 +138,11 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
         const text = await extractPdfText(firstPdf);
         const parsed = parseReservationDoc(text);
         const filled = await applyParsed(parsed);
+        // Si el PDF dice el tipo, la categoría del documento subido se ajusta (reserva/entrada/billete).
+        if (!editing && parsed.kind && firstPdfDocId) {
+          const dk = parsed.kind === 'hotel' ? 'reserva' : (parsed.kind === 'activity' ? 'entrada' : 'billete');
+          setNewDocs(d => d.map(x => x.id === firstPdfDocId ? { ...x, kind: dk } : x));
+        }
         if (filled.length) toast(`Del documento he rellenado: ${filled.join(', ')}. Revísalo por si acaso.`, 'ok');
         else toast('He guardado el documento, pero no he podido sacar datos claros de él. Rellénalo a mano.', 'info');
       } catch { toast('Documento guardado. No he podido leer su texto (quizá es una foto o un PDF escaneado); rellénalo a mano.', 'info'); }
