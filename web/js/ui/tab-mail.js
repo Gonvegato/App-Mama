@@ -236,14 +236,24 @@ export function MailTab({ trip }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [showQ, setShowQ] = useState(false);
+  const [box, setBox] = useState('');   // lo que escribe la persona en la caja de búsqueda
   const [searchOpen, setSearchOpen] = useState(trip.emails.length === 0);
   const ran = useRef(false);
 
   const run = async (query = q) => {
+    const consulta = (query || '').trim();
+    if (!consulta) return;
     setBusy(true); setErr(null);
-    try { setResults((await gmailSearch(query, 40)).sort((a, b) => b.date.localeCompare(a.date))); }
+    try { setResults((await gmailSearch(consulta, 40)).sort((a, b) => (b.date || '').localeCompare(a.date || ''))); }
     catch (e) { setErr(e.message); }
     setBusy(false);
+  };
+  // Buscar con lo que hay escrito (botón o Enter); si la caja está vacía, se repite la sugerida.
+  const submit = e => {
+    e?.preventDefault?.();
+    const v = (showQ ? q : box).trim();
+    const consulta = v || suggestedQuery(trip);
+    setQ(consulta); run(consulta);
   };
   useEffect(() => {
     if (connected && searchOpen && !ran.current) { ran.current = true; run(); }
@@ -278,9 +288,9 @@ export function MailTab({ trip }) {
         <${Chip} active=${q === suggestedQuery(trip)} icon="sparkle" onClick=${() => { const s = suggestedQuery(trip); setQ(s); run(s); }}>Sugeridos para este viaje</${Chip}>
         ${quickQueries(trip).map(x => html`<${Chip} active=${q === x.q} onClick=${() => { setQ(x.q); run(x.q); }}>${x.label}</${Chip}>`)}
       </div>
-      <form class="search-row" onSubmit=${e => { e.preventDefault(); run(); }}>
+      <form class="search-row" onSubmit=${submit}>
         ${showQ ? html`<input class="input" value=${q} onInput=${e => setQ(e.target.value)} aria-label="Búsqueda de Gmail" />`
-          : html`<input class="input" placeholder="Buscar por palabras: hotel, Iberia, código…" onKeyDown=${e => { if (e.key === 'Enter') { e.preventDefault(); const v = e.target.value.trim(); if (v) { setQ(v); run(v); } } }} aria-label="Buscar en Gmail" />`}
+          : html`<input class="input" value=${box} placeholder="Buscar por palabras: hotel, Iberia, código…" onInput=${e => setBox(e.target.value)} aria-label="Buscar en Gmail" />`}
         <${Btn} type="submit" icon="search" disabled=${busy}>Buscar</${Btn}>
       </form>
       <button type="button" class="link-btn small" onClick=${() => setShowQ(s => !s)}>${showQ ? 'Ocultar la búsqueda avanzada' : 'Ver o editar la búsqueda avanzada'}</button>

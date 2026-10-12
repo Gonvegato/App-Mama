@@ -41,40 +41,45 @@ export async function geocode(q, { near, limit = 6 } = {}) {
   if (!query) return [];
   const key = `${norm(query)}|${near ? `${near.lat.toFixed(1)},${near.lng.toFixed(1)}` : ''}`;
   if (cache()[key]) return cache()[key];
-  let results = [];
-  try {
+
+  // Nominatim (OpenStreetMap). Con «bias» solo se da preferencia a esa zona, no se limita.
+  const nominatim = async (bias) => {
     await throttle();
     const p = new URLSearchParams({ q: query, format: 'jsonv2', addressdetails: '1', limit: String(limit), 'accept-language': 'es' });
-    if (near) {
-      const d = 1.5;
-      p.set('viewbox', `${near.lng - d},${near.lat + d},${near.lng + d},${near.lat - d}`);
-    }
+    if (bias) { const d = 1.5; p.set('viewbox', `${bias.lng - d},${bias.lat + d},${bias.lng + d},${bias.lat - d}`); }
     const r = await fetch(`https://nominatim.openstreetmap.org/search?${p}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const data = await r.json();
-    results = data.map(x => ({
-      name: nameOf(x),
-      address: shortAddress(x.address, x.display_name),
-      lat: +x.lat, lng: +x.lon,
-      type: x.type, category: x.category,
+    return (await r.json()).map(x => ({
+      name: nameOf(x), address: shortAddress(x.address, x.display_name),
+      lat: +x.lat, lng: +x.lon, type: x.type, category: x.category,
       country: x.address?.country_code?.toUpperCase() || '',
     }));
+  };
+  // Alternativa: Photon (también de OpenStreetMap).
+  const photon = async (bias) => {
+    const p = new URLSearchParams({ q: query, limit: String(limit), lang: 'default' });
+    if (bias) { p.set('lat', bias.lat); p.set('lon', bias.lng); }
+    const r = await fetch(`https://photon.komoot.io/api/?${p}`);
+    return ((await r.json()).features || []).map(f => {
+      const pr = f.properties || {};
+      return {
+        name: pr.name || pr.street || pr.city || query,
+        address: [pr.street && [pr.street, pr.housenumber].filter(Boolean).join(' '), pr.city, pr.country].filter(Boolean).join(', '),
+        lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+        type: pr.osm_value, category: pr.osm_key, country: (pr.countrycode || '').toUpperCase(),
+      };
+    });
+  };
+
+  let results = [];
+  try {
+    results = await nominatim(near);
+    // Si cerca del viaje no sale nada, se busca en todo el mundo (p. ej. un sitio de otra ciudad).
+    if (!results.length && near) results = await nominatim(null);
   } catch {
-    // Alternativa: Photon (también basado en OpenStreetMap).
     try {
-      const p = new URLSearchParams({ q: query, limit: String(limit), lang: 'default' });
-      if (near) { p.set('lat', near.lat); p.set('lon', near.lng); }
-      const r = await fetch(`https://photon.komoot.io/api/?${p}`);
-      const data = await r.json();
-      results = (data.features || []).map(f => {
-        const pr = f.properties || {};
-        return {
-          name: pr.name || pr.street || pr.city || query,
-          address: [pr.street && [pr.street, pr.housenumber].filter(Boolean).join(' '), pr.city, pr.country].filter(Boolean).join(', '),
-          lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
-          type: pr.osm_value, category: pr.osm_key, country: (pr.countrycode || '').toUpperCase(),
-        };
-      });
+      results = await photon(near);
+      if (!results.length && near) results = await photon(null);
     } catch { results = []; }
   }
   if (results.length) { cache()[key] = results; saveCache(); }
