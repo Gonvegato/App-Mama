@@ -6,7 +6,8 @@ import { RES_KINDS, newReservation, isTransport, DOC_KINDS } from '../lib/model.
 import { updateTrip, uploadFile, toast, removeFiles } from '../lib/store.js';
 import { CURRENCIES, dateOnly, timeOnly, parseAmount, sid, cx } from '../lib/util.js';
 import { resizeImage } from '../lib/image.js';
-import { linkPreview, classifyLink } from '../lib/links.js';
+import { linkPreview, classifyLink, isDesktop } from '../lib/links.js';
+import { gmailConfigured } from '../lib/gmail.js';
 import { geocode } from '../lib/geo.js';
 
 export function DateTime({ value, onChange, min, defaultTime }) {
@@ -58,7 +59,11 @@ export function ReservationForm({ close, trip, res, kind: kindProp, isNew }) {
     setFetchingLink(true);
     try {
       const p = await linkPreview(url, { refresh: true });
-      if (!p) { toast('No he podido leer el enlace. Rellénalo a mano; el enlace se guarda igual.', 'error'); return; }
+      if (!p) {
+        if (!isDesktop() && !gmailConfigured()) toast('Para leer enlaces en el móvil hace falta el ayudante de Gmail (Ajustes → Correo). En el programa de Windows va directo. El enlace se guarda igual; rellena el resto a mano.', 'error');
+        else toast('No he podido leer este enlace (algunas webs, como Booking o Airbnb, lo bloquean). El enlace se guarda igual; rellena el nombre y la ubicación a mano.', 'error');
+        return;
+      }
       const patch = {};
       const name = p.name || p.title;
       if (name && !r.title.trim()) patch.title = name;
