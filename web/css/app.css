@@ -1008,3 +1008,47 @@ html.has-modal .main { overflow: hidden; }
 .rlp-text b { font-size: 1.02rem; line-height: 1.25; }
 .rlp-desc { color: var(--ink-2); font-size: .86rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-top: .1rem; }
 .res-link-prev > .icon { color: var(--ink-3); flex: none; }
+
+/* ---------- Dictado por voz ---------- */
+.mic-btn { flex: none; width: 2.6rem; height: 2.6rem; border-radius: var(--radius-sm); border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; position: relative; }
+.mic-btn:hover { color: var(--accent); border-color: var(--accent); }
+.mic-btn.is-on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.mic-live { position: absolute; inset: -4px; border-radius: inherit; border: 2px solid var(--danger); animation: mic-pulse 1.3s ease-out infinite; pointer-events: none; }
+@keyframes mic-pulse { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.35); } }
+@media (prefers-reduced-motion: reduce) { .mic-live { animation: none; opacity: .5; } }
+.mic-row { display: flex; gap: .5rem; align-items: center; }
+.mic-row .input { flex: 1; min-width: 0; }
+.mic-row-area { align-items: flex-start; }
+.mic-row-area .mic-btn { margin-top: .1rem; }
+
+/* ---------- Planes del día: fotos ---------- */
+.plan-photos { display: flex; flex-wrap: wrap; gap: .55rem; }
+.plan-photo { position: relative; width: 5.2rem; height: 5.2rem; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); }
+.plan-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.plan-photo-ph { width: 100%; height: 100%; display: grid; place-items: center; }
+.plan-photo-x { position: absolute; top: 3px; right: 3px; width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.plan-photo-x:hover { background: var(--danger); }
+.plan-photo-add { width: 5.2rem; height: 5.2rem; border-radius: var(--radius-sm); border: 1.5px dashed var(--line-2); background: var(--surface); color: var(--ink-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; cursor: pointer; font-size: .78rem; }
+.plan-photo-add:hover { border-color: var(--accent); color: var(--accent); }
+.plan-photo-add:disabled { opacity: .6; cursor: default; }
+.ag-photos { display: inline-flex; align-items: center; gap: .25rem; color: var(--ink-3); }
+.ag-photos .icon { color: var(--ink-3); }
+
+/* ---------- Panel del día (al pulsar un día del itinerario) ---------- */
+.day-head-btn { width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; align-items: center; padding: 0; color: inherit; font: inherit; border-radius: 10px; }
+.day-head-btn:hover { background: var(--hover); }
+.day-head-right { display: inline-flex; align-items: center; gap: .5rem; }
+.day-chevron { color: var(--ink-3); flex: none; }
+.day-head-btn:hover .day-chevron { color: var(--accent); }
+.day-detail-head { display: flex; align-items: center; gap: .7rem; margin-bottom: .6rem; flex-wrap: wrap; }
+.agenda-detail { margin-top: .2rem; }
+.agenda-detail .ag-item { grid-template-columns: 3.3rem 1fr auto; }
+
+/* ---------- Correo: escaneo automático y sugerencias ---------- */
+.mail-suggest { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: .8rem 1.2rem 0; padding: .7rem .9rem; border-radius: var(--radius-sm); background: var(--accent-soft); border: 1px solid var(--line-2); }
+.mail-suggest > .icon { color: var(--accent); flex: none; }
+.mail-suggest span { flex: 1; min-width: 10rem; font-size: .95rem; }
+.mail-suggest .btn { flex: none; }
+.trip-full .mail-suggest { margin-left: 1rem; margin-right: 1rem; }
+.mail-suggest-note { color: var(--ink-2); font-size: .9rem; margin-bottom: .6rem; }
+@media (max-width: 560px) { .mail-suggest { margin-left: .7rem; margin-right: .7rem; } .plan-photo, .plan-photo-add { width: 4.6rem; height: 4.6rem; } }

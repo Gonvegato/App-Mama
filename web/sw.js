@@ -1,5 +1,5 @@
 // Service worker: la app abre sin conexión y guarda los trozos de mapa ya vistos.
-const VERSION = 'cv-1.0.1';
+const VERSION = 'cv-1.0.2';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'mapa-v2';
 const MAX_TILES = 2500;

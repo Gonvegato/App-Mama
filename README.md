@@ -7,11 +7,11 @@ Cada viaje tiene **portada, fechas y viajeros**, y estas secciones:
 | Sección | Qué hace |
 |---|---|
 | **Resumen** | Cuenta atrás, lo próximo que toca, el tiempo previsto (hasta 16 días vista), mapa en miniatura y notas. |
-| **Itinerario** | El viaje día a día: vuelos, entrada y salida del hotel, actividades, lugares asignados a cada día y planes propios con hora. |
+| **Itinerario** | El viaje día a día: vuelos, entrada y salida del hotel, actividades, lugares asignados a cada día y planes propios con hora. Al pulsar un día se abre su panel, donde se añaden planes, se escribe una nota larga, se adjuntan fotos y se puede **dictar por voz** (título y nota). |
 | **Mapa** | Lugares por categorías, alojamientos, vuelos (con su curva real) y rutas. Buscador de sitios, «Añadir punto» tocando el mapa, filtro por día, «Cómo llegar» con Google Maps o Apple Maps y la ubicación actual. |
 | **Reservas** | Vuelos (con buscador de aeropuertos), alojamientos, trenes, autobuses, barcos, coches de alquiler, entradas y restaurantes, con su código de reserva (se copia con un toque), precio y billetes adjuntos. |
 | **Documentos** | Billetes, tarjetas de embarque, entradas, guías, seguros, fotos y enlaces. Todo se abre dentro de la app: visor de PDF propio (también en el móvil), enlaces de Google Drive, Docs, YouTube, Dropbox, pCloud, PDF y webs. Descarga, arrastrar y soltar, y copia para verlos sin conexión. |
-| **Correos** | Busca en Gmail los correos del viaje (búsqueda preparada con el destino, las fechas y los códigos de las reservas) y los guarda en el viaje junto con sus adjuntos. |
+| **Correos** | Busca en Gmail los correos del viaje (búsqueda preparada con el destino, las fechas y los códigos de las reservas) y los guarda en el viaje junto con sus adjuntos. Además, **al abrir el viaje mira el correo solo** y, si encuentra reservas o billetes que podrían ser de ese viaje, avisa con un aviso para revisarlos y añadirlos (no guarda nada sin tu permiso). |
 | **Maleta** | Lista con plantillas (esencial, ropa, aseo, playa, frío, avión), grupos propios y copiar la maleta de otro viaje. |
 | **Gastos** | Presupuesto, gastos por categorías, precios de las reservas sumados solos y cuentas entre viajeros. |
 

@@ -103,6 +103,10 @@ export function normalizeTrip(t) {
 export const newReservation = (kind = 'flight', p = {}) => ({ id: sid(), kind, title: '', start: '', end: '', from: null, to: null, location: null, code: '', provider: '', number: '', seat: '', notes: '', url: '', price: null, docIds: [], ...p });
 export const newPlace = (p = {}) => ({ id: sid(), name: '', address: '', lat: null, lng: null, category: 'sight', day: '', notes: '', url: '', visited: false, source: 'manual', ...p });
 export const newRoute = (p = {}) => ({ id: sid(), name: 'Ruta', color: '#4c6f86', points: [], source: 'manual', ...p });
+// Un plan del día: hora, título, una nota más larga y fotos (ids de documentos del viaje).
+export const newPlanItem = (p = {}) => ({ id: sid(), time: '', text: '', note: '', photoIds: [], ...p });
+// Deja un plan con todos sus campos aunque venga de una versión antigua (sin nota ni fotos).
+export const planItem = it => ({ note: '', photoIds: [], time: '', text: '', ...it });
 
 export function resTitle(r, { short = false } = {}) {
   if (r.title) return r.title;

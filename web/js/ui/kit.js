@@ -1,7 +1,7 @@
 // Piezas de interfaz reutilizables.
 import { html, render, useState, useEffect, useRef, useCallback, useLayoutEffect } from '../../vendor/preact-htm.js';
 import { ICONS } from '../lib/icon-data.js';
-import { toasts, dismissToast, fileUrl } from '../lib/store.js';
+import { toasts, dismissToast, fileUrl, toast } from '../lib/store.js';
 import { cx, sid } from '../lib/util.js';
 
 export { html };
@@ -19,6 +19,35 @@ export function Btn({ kind = 'default', icon, children, class: cls, size, ...res
 
 export function IconBtn({ icon, label, class: cls, size = 18, ...rest }) {
   return html`<button type="button" class=${cx('icon-btn', cls)} aria-label=${label} title=${label} ...${rest}><${Icon} name=${icon} size=${size} /></button>`;
+}
+
+// Dictado por voz con la Web Speech API. Solo aparece si el navegador lo admite.
+export const speechSupported = () => typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+export function MicButton({ onText, lang = 'es-ES', title = 'Dictar', class: cls }) {
+  const [on, setOn] = useState(false);
+  const rec = useRef(null);
+  useEffect(() => () => { try { rec.current?.stop(); } catch { /* nada */ } }, []);
+  if (!speechSupported()) return null;
+  const stop = () => { try { rec.current?.stop(); } catch { /* nada */ } };
+  const start = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.lang = lang; r.interimResults = false; r.continuous = true;
+    r.onresult = e => {
+      let t = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) t += e.results[i][0].transcript;
+      t = t.trim();
+      if (t) onText(t);
+    };
+    r.onend = () => setOn(false);
+    r.onerror = ev => { setOn(false); if (ev?.error === 'not-allowed' || ev?.error === 'service-not-allowed') toast('Da permiso al micrófono para poder dictar.', 'error'); };
+    rec.current = r;
+    try { r.start(); setOn(true); } catch { setOn(false); }
+  };
+  return html`<button type="button" class=${cx('mic-btn', on && 'is-on', cls)} title=${on ? 'Parar de dictar' : title} aria-label=${on ? 'Parar de dictar' : title} aria-pressed=${on} onClick=${() => on ? stop() : start()}>
+    <${Icon} name=${on ? 'mic-off' : 'mic'} size=${18} />${on && html`<span class="mic-live" aria-hidden="true"></span>`}
+  </button>`;
 }
 
 export function Field({ label, hint, children, class: cls, wide }) {

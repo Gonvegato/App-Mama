@@ -10,7 +10,8 @@ import { MapTab } from './tab-map.js';
 import { RoutesTab } from './tab-routes.js';
 import { BookingsTab } from './tab-bookings.js';
 import { DocsTab } from './tab-docs.js';
-import { MailTab } from './tab-mail.js';
+import { MailTab, MailSuggestionsBanner } from './tab-mail.js';
+import { scanTripMail } from '../lib/mail-scan.js';
 import { PackingTab } from './tab-packing.js';
 import { ExpensesTab } from './tab-expenses.js';
 import { useStore, deleteTrip, duplicateTrip, toast, keepOffline, state } from '../lib/store.js';
@@ -36,6 +37,8 @@ export function TripPage({ route }) {
   const tab = TABS.find(t => t.id === route.tab) || TABS[0];
 
   useEffect(() => { document.title = trip ? `${trip.title || trip.destination} · Cuaderno de viajes` : 'Cuaderno de viajes'; }, [trip?.title]);
+  // Al abrir el viaje, mira el correo por si hay reservas nuevas que añadir (sin molestar: cada pocas horas).
+  useEffect(() => { if (trip) scanTripMail(trip); }, [trip?.id]);
   useEffect(() => {
     // Mantiene visible la pestaña activa en móvil.
     document.querySelector('.tabs .is-active')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
@@ -108,6 +111,7 @@ export function TripPage({ route }) {
         </a>`;
       })}
     </nav>
+    <${MailSuggestionsBanner} trip=${trip} />
     <section class=${cx('tab-body', `tab-${tab.id}`)} key=${tab.id}>
       <${tab.C} trip=${trip} route=${route} />
     </section>

@@ -8,6 +8,7 @@ import { KindPicker, ReservationForm } from './res-form.js';
 import { newReservation } from '../lib/model.js';
 import { sid, fmtSize, base64ToBlob, cx } from '../lib/util.js';
 import { go } from '../lib/router.js';
+import { mailScanState, mailCandidates, dismissCandidates } from '../lib/mail-scan.js';
 
 const fmtWhen = iso => {
   const d = new Date(iso);
@@ -151,6 +152,38 @@ function Results({ trip, results, onSaved }) {
         </li>`;
       })}
     </ul>
+  </div>`;
+}
+
+// Modal para revisar los correos que la app encontró sola para este viaje.
+function MailSuggestions({ close, trip: trip0 }) {
+  useStore(s => s.trips);
+  useStore(s => s.mailScan);
+  const trip = useStore(s => s.trips.find(t => t.id === trip0.id)) || trip0;
+  const cands = mailCandidates(trip0.id);
+  const discardAll = () => { if (cands.length) dismissCandidates(trip0.id, cands.map(c => c.id)); close(); };
+  return html`<${Modal} title="Correos encontrados para este viaje" close=${close} size="lg" class="mail-reader"
+    footer=${html`<${Btn} kind="ghost" onClick=${close}>Cerrar</${Btn}>${cands.length > 0 && html`<${Btn} kind="ghost" icon="x" onClick=${discardAll}>Descartar todos</${Btn}>`}`}>
+    ${cands.length === 0
+      ? html`<${Empty} icon="mail" title="Nada pendiente" text="Ya has revisado los correos que encontré. Buscaré de nuevo más adelante." />`
+      : html`<p class="mail-suggest-note">Los he buscado en tu Gmail con el destino, las fechas y tus reservas. Marca los que sean de este viaje para guardarlos; los demás puedes descartarlos.</p>
+        <${Results} trip=${trip} results=${cands} onSaved=${() => {}} />`}
+  </${Modal}>`;
+}
+
+export const openMailSuggestions = trip => openModal(MailSuggestions, { trip });
+
+// Aviso que aparece en el viaje cuando hay correos nuevos que podrían añadirse.
+export function MailSuggestionsBanner({ trip }) {
+  useStore(s => s.mailScan);
+  const sc = mailScanState(trip.id);
+  const n = sc?.candidates?.length || 0;
+  if (!n) return null;
+  return html`<div class="mail-suggest" role="status">
+    <${Icon} name="mail" size=${18} />
+    <span>He encontrado <b>${n}</b> ${n > 1 ? 'correos que podrían ser' : 'correo que podría ser'} de este viaje.</span>
+    <${Btn} kind="primary" icon="search" onClick=${() => openMailSuggestions(trip)}>Revisar</${Btn}>
+    <${IconBtn} icon="x" label="Descartar todos" onClick=${() => dismissCandidates(trip.id, sc.candidates.map(c => c.id))} />
   </div>`;
 }
 
