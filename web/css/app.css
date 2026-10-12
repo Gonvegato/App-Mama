@@ -987,3 +987,8 @@ html.has-modal .main { overflow: hidden; }
 .elev-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .ri-profile-ax { display: flex; justify-content: space-between; color: var(--ink-2); font-size: .78rem; font-variant-numeric: tabular-nums; }
 .ri-note { margin: 0; }
+
+/* Aviso de indicaciones de ruta coladas como lugares */
+.map-junk { margin: 0 0 .2rem; padding: .65rem .8rem; }
+.map-junk > span { flex: 1; min-width: 8rem; color: var(--ink-2); font-size: .9rem; }
+.map-junk .btn { flex: none; }

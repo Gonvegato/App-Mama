@@ -8,6 +8,27 @@ const empty = () => ({ places: [], routes: [], pending: [], warnings: [] });
 const num = v => { const n = parseFloat(v); return isFinite(n) ? n : null; };
 const validLL = (lat, lng) => lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0);
 
+// Indicaciones de navegación paso a paso («Turn left», «Gira a la derecha», «En la rotonda»…).
+// Algunos archivos de rutas traen un punto por cada maniobra; no son lugares que visitar.
+const NAV_RE = new RegExp('^(' + [
+  // Inglés
+  'turn (left|right|around|sharp|slight)', 'keep (left|right|straight)', 'slight (left|right)', 'sharp (left|right)',
+  'bear (left|right)', 'continue', 'head (north|south|east|west|straight)', 'go (straight|north|south|east|west|back)',
+  'merge', 'proceed', 'take (the )?exit', 'take (the )?ramp', 'exit (the )?roundabout', 'enter (the )?roundabout',
+  'at the roundabout', 'roundabout', 'make a u-?turn', 'u-?turn', 'arrive', 'destination', 'follow ', 'ramp',
+  // Español
+  'gir[ae] (a la |hacia |ligeramente |bruscamente )?(izquierda|derecha)', 'gir[ae]\\b', 'mant(é|e)n(te)?',
+  'contin(ú|u)[ae]', 'sig[au]e? (recto|todo recto)', 'sigue recto', 'incorp(ó|o)rate', 'incorp(ó|o)r',
+  'toma (la )?salida', 'sal por', 'en la rotonda', 'rotonda', 'cambio de sentido', 'haz un cambio de sentido',
+  'dir(í|i)gete', 've hacia', 've en direcci(ó|o)n', 'llega a (tu |el )?destino', 'destino', 'sigue por',
+].join('|') + ')\\b', 'i');
+
+export function isRouteInstruction(name) {
+  const n = String(name || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  if (!n) return false;
+  return NAV_RE.test(n);
+}
+
 export function stripHtml(s) {
   return String(s || '')
     .replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n')

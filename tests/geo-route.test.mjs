@@ -3,6 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { routeLengthKm, nearestOnRoute, fmtKm, elevationStats, difficulty, routeStats } = await import('../web/js/lib/geo-route.js');
+const { isRouteInstruction } = await import('../web/js/lib/importers.js');
+
+test('isRouteInstruction detecta indicaciones de navegación y respeta los lugares reales', () => {
+  for (const s of ['Turn left', 'Keep left', 'Turn sharp', 'Slight right', 'Continue', 'At the roundabout', 'Take the exit', 'Gira a la derecha', 'Continúa recto', 'Mantente a la izquierda', 'En la rotonda', 'Llega a tu destino'])
+    assert.equal(isRouteInstruction(s), true, `debería ser instrucción: ${s}`);
+  for (const s of ['Castelo de São Jorge', 'Pastéis de Belém', 'Continental Hotel', 'Right Bank Café', 'Head Office Museum', 'Plaza Mayor'])
+    assert.equal(isRouteInstruction(s), false, `debería ser lugar: ${s}`);
+});
 
 // Una línea de 4 puntos aproximadamente en línea recta hacia el este.
 const route = [

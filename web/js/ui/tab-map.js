@@ -7,6 +7,7 @@ import { ICONS } from '../lib/icon-data.js';
 import { loadLeaflet, baseLayer, currentMapStyle, MAP_STYLES } from '../lib/leaflet-loader.js';
 import { PLACE_CATS, RES_KINDS, newPlace, resTitle, isTransport } from '../lib/model.js';
 import { updateTrip, toast, useStore, setPrefs, getTrip } from '../lib/store.js';
+import { isRouteInstruction } from '../lib/importers.js';
 import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, googleDirectionsUrl, appleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
 import { eachDay, fmtDate, cx } from '../lib/util.js';
 
@@ -378,6 +379,14 @@ export function MapTab({ trip, route }) {
   for (const r of trip.reservations) if (r.from?.lat != null || r.to?.lat != null || r.location?.lat != null) resCounts[r.kind] = (resCounts[r.kind] || 0) + 1;
   const routeCount = trip.routes.filter(r => r.points?.length > 1).length;
   const listPlaces = trip.places.filter(p => !hidden.has(`p:${p.category}`) && (!day || p.day === day));
+  const junk = trip.places.filter(p => isRouteInstruction(p.name));
+  const cleanJunk = async () => {
+    if (!await confirm('Quitar indicaciones de ruta', `Se quitarán ${junk.length} puntos que parecen indicaciones de navegación (como «Gira a la izquierda»). Las rutas y los demás lugares no se tocan.`, { okLabel: `Quitar ${junk.length}`, danger: true })) return;
+    const ids = new Set(junk.map(p => p.id));
+    updateTrip(trip.id, t => { t.places = t.places.filter(p => !ids.has(p.id)); });
+    setSel(null);
+    toast('Indicaciones quitadas', 'ok');
+  };
   const dayStops = day ? trip.places.filter(p => p.day === day && p.lat != null).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')) : [];
   const empty = !trip.places.length && !trip.routes.length && !data.res.length;
 
@@ -413,6 +422,12 @@ export function MapTab({ trip, route }) {
           <button type="button" class="btn btn-primary btn-sm" onClick=${() => addFromResult(r)}>Añadir</button></li>`)}
         ${!results.length && html`<li class="results-none">Sin resultados. Prueba añadiendo la ciudad.</li>`}
       </ul>`}
+
+      ${junk.length > 0 && html`<div class="notice notice-warn map-junk">
+        <${Icon} name="info" size=${16} />
+        <span>Hay ${junk.length} ${junk.length === 1 ? 'punto que parece una indicación' : 'puntos que parecen indicaciones'} de ruta («Gira…», «Turn…»).</span>
+        <${Btn} size="sm" icon="trash" onClick=${cleanJunk}>Quitar${junk.length > 1 ? ` (${junk.length})` : ''}</${Btn}>
+      </div>`}
 
       ${(Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) > 1 || days.length > 0) && html`<div class="panel-filters">
         ${Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) > 1 && html`<div class="layers">

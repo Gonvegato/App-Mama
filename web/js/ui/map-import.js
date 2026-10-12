@@ -1,7 +1,7 @@
 // Importar lugares y rutas desde Google Maps, Apple Maps y archivos (KML, KMZ, GPX, GeoJSON, CSV).
 import { html, useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import { Btn, Icon, Modal, Segmented, Spinner, DropZone, pickFiles, Field, Select } from './kit.js';
-import { parseFile, parseMapLink, extractUrls, merge, emptyImport } from '../lib/importers.js';
+import { parseFile, parseMapLink, extractUrls, merge, emptyImport, isRouteInstruction } from '../lib/importers.js';
 import { geocode, distanceKm } from '../lib/geo.js';
 import { gmailConfigured, resolveUrl } from '../lib/gmail.js';
 import { PLACE_CATS, newPlace, newRoute } from '../lib/model.js';
@@ -40,6 +40,12 @@ export function ImportModal({ close, trip }) {
   useEffect(() => () => { stop.current = true; }, []);
 
   const finish = res => {
+    // Quita las indicaciones de navegación («Turn left», «Gira a la derecha»…): no son lugares.
+    const before = res.places.length + res.pending.length;
+    res.places = res.places.filter(p => !isRouteInstruction(p.name));
+    res.pending = res.pending.filter(p => !isRouteInstruction(p.name));
+    const skipped = before - res.places.length - res.pending.length;
+    if (skipped > 0) res.warnings.push(`Se ${skipped === 1 ? 'ha omitido 1 indicación de navegación' : `han omitido ${skipped} indicaciones de navegación`} (como «Gira a la izquierda»); la ruta sí se mantiene.`);
     // Marca duplicados respecto a lo que ya hay en el viaje.
     const isDup = p => trip.places.some(x => x.lat != null && p.lat != null && distanceKm(x, p) < 0.05 && x.name.toLowerCase() === p.name.toLowerCase());
     res.places = res.places.map(p => ({ ...p, _id: sid(), _dup: isDup(p) }));

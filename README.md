@@ -109,6 +109,8 @@ En **Mapa → Importar** hay una pestaña «Cómo exportar» con estas mismas in
 - **Apple Maps:** Compartir → Copiar en cada lugar o ruta y pegar los enlaces. **Apple Maps no permite exportar guías completas**, así que hay que compartir los lugares uno a uno.
 - **GPX** (Komoot, Wikiloc, relojes…) y **GeoJSON** también se importan.
 
+Al importar, la app **descarta las indicaciones de navegación** (los «Gira a la izquierda», «Turn left», «En la rotonda»… que traen algunas rutas) para que no se cuelen como lugares; la ruta en sí sí se conserva, y se avisa de cuántas se han omitido. Si un viaje ya tenía algunas de antes, en el **Mapa** aparece un aviso para quitarlas de golpe.
+
 En el **Mapa** aparece todo lo que tenga ubicación: los lugares, el **alojamiento** y las reservas (hoteles, restaurantes, actividades) que se hayan buscado al crearlas, los vuelos y trayectos, y las rutas. Un plan escrito a mano en el itinerario no sale en el mapa porque no tiene un sitio concreto; para que salga, añádelo como lugar o búscale la dirección en la reserva.
 
 En el panel del mapa, bajo **«Mostrar en el mapa»**, hay un interruptor por cada tipo (Visitar, Comer, Alojamiento, Vuelos, Rutas…): tócalo para ocultar o volver a mostrar esa capa y ver el mapa más limpio. «Ver todo» lo restablece.
