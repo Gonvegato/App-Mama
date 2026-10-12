@@ -109,7 +109,7 @@ export function parseReservationDoc(text) {
   const kind = guessReservationKind(t);
   if (kind) out.kind = kind;
 
-  const code = t.match(/(?:c[oó]digo de (?:reserva|confirmaci[oó]n)|confirmation (?:number|code|no\.?)|n[uú]mero de confirmaci[oó]n|booking (?:number|reference|ref\.?)|localizador|reservation (?:code|number))\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{4,})/i);
+  const code = t.match(/(?:c[oó]digo de (?:reserva|confirmaci[oó]n)|n[uú]mero de (?:reserva|confirmaci[oó]n)|confirmation (?:number|code|no\.?)|booking (?:number|reference|ref\.?)|localizador|reservation (?:code|number)|confirmaci[oó]n|confirmation)\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{4,})/i);
   if (code) out.code = code[1].toUpperCase().replace(/-+$/, '');
 
   const ci = dateNear(t, ['check-in', 'check in', 'entrada', 'llegada', 'arrival']);

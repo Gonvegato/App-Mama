@@ -83,6 +83,7 @@ Salida                  domingo, 25 de octubre de 2026 (de 06:00 a 11:00)
 Precio total                                                                      € 210`;
   const r = parseReservationDoc(txt);
   assert.equal(r.kind, 'hotel');
+  assert.equal(r.code, '5665352263');
   assert.equal(r.start, '2026-10-23');   // la entrada, no la fecha del correo
   assert.equal(r.end, '2026-10-25');
   assert.equal(r.name, 'HOTEL RURAL BASQUE IRATI');  // sin «el» ni «está confirmada»

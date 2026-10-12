@@ -6,6 +6,8 @@ import { updateTrip, uploadFile, removeFiles, fileBlob, toast, useStore, offline
 import { guessDocKind } from './tab-docs.js';
 import { KindPicker, ReservationForm } from './res-form.js';
 import { newReservation } from '../lib/model.js';
+import { parseReservationDoc } from '../lib/doc-parse.js';
+import { geocode } from '../lib/geo.js';
 import { sid, fmtSize, base64ToBlob, cx } from '../lib/util.js';
 import { go } from '../lib/router.js';
 import { mailScanState, mailCandidates, dismissCandidates } from '../lib/mail-scan.js';
@@ -34,6 +36,48 @@ function MailFrame({ srcdoc }) {
   return html`<iframe class="mail-frame" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin" srcdoc=${srcdoc} title="Correo"></iframe>`;
 }
 
+// Texto plano de un correo (de un HTML).
+const stripHtml = h => String(h || '')
+  .replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  .replace(/<\/(p|div|tr|li|br|h[1-6])>/gi, '\n').replace(/<[^>]+>/g, ' ')
+  .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&#\d+;/g, ' ')
+  .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+// Saca el texto del correo: primero el cuerpo ya guardado (vale sin conexión) y, si no, lo pide a Gmail.
+async function emailText(email) {
+  try { if (email.bodyPath) { const b = await fileBlob(email.bodyPath); return stripHtml(await b.text()); } } catch { /* sigue */ }
+  try { const m = await gmailGet(email.gmailId); return m.plain || stripHtml(m.html) || ''; } catch { return email.snippet || ''; }
+}
+
+// Crea una reserva leyendo los datos del propio correo (tipo, nombre, fechas, código, precio, teléfono, ubicación).
+async function createReservationFromEmail(trip, email, close) {
+  let parsed = {};
+  try { parsed = parseReservationDoc(`${email.subject || ''}\n${await emailText(email)}`); }
+  catch { /* si no se puede leer, se rellena a mano */ }
+  let kind = parsed.kind;
+  if (!kind) kind = await openModal(KindPicker);   // si no se adivina el tipo, se pregunta
+  if (!kind) return;
+  close?.();
+  const docIds = trip.docs.filter(d => d.fromEmail === email.id).map(d => d.id);
+  const r = { ...newReservation(kind), docIds, notes: `Del correo «${email.subject}» (${sender(email.from)}, ${fmtWhen(email.date)}).` };
+  const filled = [];
+  if (parsed.name) { r.title = parsed.name; filled.push('nombre'); }
+  if (parsed.code) { r.code = parsed.code; filled.push('código'); }
+  if (parsed.start) { r.start = parsed.start; filled.push('fechas'); }
+  if (parsed.end) r.end = parsed.end;
+  if (parsed.provider) r.provider = parsed.provider;
+  if (parsed.phone) r.phone = parsed.phone;
+  if (parsed.price) { r.price = { amount: parsed.price, currency: parsed.currency || trip.budget?.currency || 'EUR' }; filled.push('precio'); }
+  if (parsed.name && ['hotel', 'restaurant', 'activity'].includes(kind)) {
+    try {
+      const hit = (await geocode(`${parsed.name}${trip.destination ? `, ${trip.destination}` : ''}`, { near: trip.center || undefined, limit: 1 }))[0] || (await geocode(parsed.name, { limit: 1 }))[0];
+      if (hit) { r.location = { lat: hit.lat, lng: hit.lng, name: hit.name || parsed.name, address: hit.address || '' }; filled.push('ubicación'); }
+    } catch { /* sin ubicación */ }
+  }
+  if (filled.length) toast(`Del correo he rellenado: ${filled.join(', ')}. Revísalo por si acaso.`, 'ok');
+  openModal(ReservationForm, { trip, kind, res: r, isNew: true });
+}
+
 function MailReader({ close, trip, email, preview, onSave }) {
   const [doc, setDoc] = useState(preview ? emailDoc(preview) : null);
   const [err, setErr] = useState(null);
@@ -46,13 +90,7 @@ function MailReader({ close, trip, email, preview, onSave }) {
   return html`<${Modal} title=${m.subject} close=${close} size="xl" class="viewer mail-reader"
     footer=${preview ? html`<${Btn} kind="ghost" onClick=${close}>Cerrar</${Btn}><${Btn} kind="primary" icon="paperclip" onClick=${() => { close(); onSave?.(); }}>Guardar en el viaje</${Btn}>`
       : html`<${Btn} kind="ghost" icon="trash" onClick=${async () => { if (await removeEmail(trip, email)) close(); }}>Quitar del viaje</${Btn}>
-        <${Btn} icon="ticket" onClick=${async () => {
-          close();
-          const kind = await openModal(KindPicker);
-          if (!kind) return;
-          const docIds = trip.docs.filter(d => d.fromEmail === email.id).map(d => d.id);
-          openModal(ReservationForm, { trip, kind, res: { ...newReservation(kind), docIds, notes: `Del correo «${email.subject}» (${sender(email.from)}, ${fmtWhen(email.date)}).` }, isNew: true });
-        }}>Crear reserva con este correo</${Btn}>
+        <${Btn} icon="ticket" onClick=${() => createReservationFromEmail(trip, email, close)}>Crear reserva con este correo</${Btn}>
         ${email.gmailId && html`<a class="btn btn-default" href=${`https://mail.google.com/mail/u/0/#all/${email.threadId || email.gmailId}`} target="_blank" rel="noopener"><${Icon} name="external" size=${18} /><span>Abrir en Gmail</span></a>`}`}>
     <div class="mail-meta">
       <span><b>${sender(m.from)}</b> <small>${m.from?.includes('<') ? m.from.slice(m.from.indexOf('<')) : ''}</small></span>
