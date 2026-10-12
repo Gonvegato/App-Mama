@@ -157,7 +157,7 @@ export function parseGPX(xmlText) {
     res.places.push({ name: text(kid(w, 'name')) || 'Punto', lat, lng, notes: stripHtml(text(kid(w, 'desc')) || text(kid(w, 'cmt'))), source: 'gpx' });
   }
   for (const r of desc(doc, 'rte')) {
-    const pts = desc(r, 'rtept').map(p => [num(p.getAttribute('lat')), num(p.getAttribute('lon'))]).filter(([a, b]) => validLL(a, b));
+    const pts = desc(r, 'rtept').map(p => gpxPoint(p)).filter(Boolean);
     if (pts.length > 1) res.routes.push({ name: text(kid(r, 'name')) || 'Ruta', points: pts, source: 'gpx' });
     // Los puntos con nombre de una ruta también se ofrecen como lugares.
     for (const p of desc(r, 'rtept')) {
@@ -167,11 +167,19 @@ export function parseGPX(xmlText) {
     }
   }
   for (const t of desc(doc, 'trk')) {
-    const pts = desc(t, 'trkpt').map(p => [num(p.getAttribute('lat')), num(p.getAttribute('lon'))]).filter(([a, b]) => validLL(a, b));
+    const pts = desc(t, 'trkpt').map(p => gpxPoint(p)).filter(Boolean);
     if (pts.length > 1) res.routes.push({ name: text(kid(t, 'name')) || 'Recorrido', points: simplify(pts, 1500), source: 'gpx' });
   }
   if (!res.places.length && !res.routes.length) res.warnings.push('El GPX no contiene puntos ni rutas.');
   return res;
+}
+
+// Un punto de ruta GPX: [lat, lng] y, si viene, la altitud en metros como tercer valor.
+function gpxPoint(p) {
+  const lat = num(p.getAttribute('lat')), lng = num(p.getAttribute('lon'));
+  if (!validLL(lat, lng)) return null;
+  const ele = num(text(kid(p, 'ele')));
+  return ele != null ? [lat, lng, ele] : [lat, lng];
 }
 
 // Reduce recorridos larguísimos para que el mapa vaya fluido.

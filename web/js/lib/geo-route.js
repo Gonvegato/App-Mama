@@ -59,6 +59,44 @@ export function nearestOnRoute(points, pos) {
   };
 }
 
+// Desnivel y altitud a partir de la altura (tercer valor de cada punto, si el GPX la trae).
+// Se usa un pequeño umbral para no contar el «ruido» del GPS como subidas y bajadas.
+export function elevationStats(points, threshold = 4) {
+  const eles = points.map(p => (p.length > 2 && isFinite(p[2]) ? p[2] : null));
+  if (eles.filter(e => e != null).length < 2) return { has: false };
+  let ascent = 0, descent = 0, min = Infinity, max = -Infinity, last = null;
+  for (const e of eles) {
+    if (e == null) continue;
+    if (e < min) min = e;
+    if (e > max) max = e;
+    if (last != null) {
+      const d = e - last;
+      if (d > threshold) { ascent += d; last = e; }
+      else if (d < -threshold) { descent += -d; last = e; }
+    } else last = e;
+  }
+  return { has: true, ascent: Math.round(ascent), descent: Math.round(descent), min: Math.round(min), max: Math.round(max) };
+}
+
+// Estimación de dificultad a partir de distancia y desnivel positivo (regla de a pie, tipo Naismith:
+// 100 m de subida ≈ 1 km de esfuerzo). No mide lo técnico del terreno; es orientativa.
+export function difficulty(lengthKm, ascentM = 0) {
+  const effort = lengthKm + (ascentM || 0) / 100;
+  if (effort < 5) return { level: 1, label: 'Fácil' };
+  if (effort < 12) return { level: 2, label: 'Moderada' };
+  if (effort < 22) return { level: 3, label: 'Exigente' };
+  return { level: 4, label: 'Difícil' };
+}
+
+// Resumen completo de una ruta para el menú de detalles.
+export function routeStats(route) {
+  const points = route.points || [];
+  const lengthKm = routeLengthKm(points);
+  const ele = elevationStats(points);
+  const diff = difficulty(lengthKm, ele.has ? ele.ascent : 0);
+  return { lengthKm, points: points.length, ele, difficulty: diff };
+}
+
 // Texto corto de una distancia en km (p. ej. «450 m», «2,3 km»).
 export function fmtKm(km) {
   if (km == null || !isFinite(km)) return '';

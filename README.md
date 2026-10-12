@@ -111,6 +111,8 @@ En **Mapa → Importar** hay una pestaña «Cómo exportar» con estas mismas in
 
 En el **Mapa** aparece todo lo que tenga ubicación: los lugares, el **alojamiento** y las reservas (hoteles, restaurantes, actividades) que se hayan buscado al crearlas, los vuelos y trayectos, y las rutas. Un plan escrito a mano en el itinerario no sale en el mapa porque no tiene un sitio concreto; para que salga, añádelo como lugar o búscale la dirección en la reserva.
 
+En el panel del mapa, bajo **«Mostrar en el mapa»**, hay un interruptor por cada tipo (Visitar, Comer, Alojamiento, Vuelos, Rutas…): tócalo para ocultar o volver a mostrar esa capa y ver el mapa más limpio. «Ver todo» lo restablece.
+
 ---
 
 ## Rutas (seguir un recorrido)
@@ -118,7 +120,8 @@ En el **Mapa** aparece todo lo que tenga ubicación: los lugares, el **alojamien
 La pestaña **Rutas** sirve para importar recorridos (un sendero, una ruta en coche o a pie) y **seguirlos viendo tu posición encima**.
 
 - **Importar:** pulsa «Importar ruta» y elige un archivo **GPX** (Komoot, Wikiloc, Strava, un reloj…), un **KML** de Google My Maps, o pega una ruta de Google o Apple Maps.
-- **Seguir:** pulsa «Seguir» en una ruta. Se abre un mapa a pantalla completa con la línea del recorrido y un punto azul con tu ubicación en vivo. Abajo se ve cuánto queda, el porcentaje hecho y, si te sales, a qué distancia estás de la línea. El alojamiento y los lugares del viaje salen tenues como referencia.
+- **Detalles:** cada ruta tiene un botón «Detalles» con su distancia, el desnivel de subida y bajada, la altitud mínima y máxima, un **perfil de altitud** y una **dificultad orientativa** (calculada a partir de la distancia y la subida; no mide lo técnico del terreno). El desnivel y el perfil solo aparecen si el archivo trae altitud (los GPX de senderismo suelen traerla).
+- **Empezar / Seguir:** pulsa «Empezar» en una ruta (o «Empezar ruta» desde Detalles). Se abre un mapa a pantalla completa con la línea del recorrido y un punto azul con tu ubicación en vivo. Abajo se ve cuánto queda, el porcentaje hecho y, si te sales, a qué distancia estás de la línea. El alojamiento y los lugares del viaje salen tenues como referencia.
 - Funciona **sin conexión**: los puntos de la ruta están guardados y el mapa usa los trozos que ya se hayan visto. Hace falta dar permiso de **ubicación** y conviene llevar el móvil cargado (la pantalla se mantiene encendida mientras sigues).
 - Para **indicaciones calle a calle** (voz, giros), usa «Abrir en Maps»: eso abre Google o Apple Maps, que es lo que sabe navegar de verdad.
 

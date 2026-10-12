@@ -967,3 +967,23 @@ html.has-modal .main { overflow: hidden; }
 .me-dot { animation: me-pulse 1.8s ease-in-out infinite; }
 @keyframes me-pulse { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .45; } }
 @media (max-width: 560px) { .route-list { grid-template-columns: 1fr; } }
+
+/* ---------- Capas del mapa ---------- */
+.layers { display: grid; gap: .45rem; }
+.layers-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.layers .chip:not(.is-active) { opacity: .5; text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* ---------- Detalles de una ruta ---------- */
+.route-info { display: grid; gap: 1rem; }
+.ri-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: .6rem; }
+.ri-stat { background: var(--surface-2, color-mix(in srgb, var(--ink) 4%, var(--surface))); border: 1px solid var(--line); border-radius: 12px; padding: .55rem .7rem; display: flex; flex-direction: column; gap: .15rem; }
+.ri-stat small { color: var(--ink-2); font-size: .78rem; }
+.ri-stat b { font-size: 1.08rem; font-variant-numeric: tabular-nums; }
+.ri-diff b { color: var(--kc, var(--ink)); }
+.ri-diff.diff-1 { --kc: #4f7d53; } .ri-diff.diff-2 { --kc: #8a7a3c; } .ri-diff.diff-3 { --kc: #b06a34; } .ri-diff.diff-4 { --kc: #a2473a; }
+.ri-profile { display: grid; gap: .2rem; }
+.elev-svg { width: 100%; height: 120px; display: block; background: color-mix(in srgb, var(--accent) 5%, var(--surface)); border: 1px solid var(--line); border-radius: 12px; }
+.elev-area { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: none; }
+.elev-line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.ri-profile-ax { display: flex; justify-content: space-between; color: var(--ink-2); font-size: .78rem; font-variant-numeric: tabular-nums; }
+.ri-note { margin: 0; }

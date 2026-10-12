@@ -20,12 +20,14 @@ function markerIcon(L, { color, icon, shape = 'round', selected, faded, label })
   });
 }
 
-// Elementos dibujables de un viaje.
-function collect(trip, { cats, day }) {
-  const places = trip.places.filter(p => p.lat != null && (!cats.size || cats.has(p.category)) && (!day || p.day === day));
+// Elementos dibujables de un viaje. `hidden` es un conjunto de capas ocultas:
+// «p:<categoría>» para lugares, «r:<tipo>» para reservas y «routes» para las rutas.
+function collect(trip, { hidden = new Set(), day }) {
+  const places = trip.places.filter(p => p.lat != null && !hidden.has(`p:${p.category}`) && (!day || p.day === day));
   const res = [];
   const lines = [];
   for (const r of trip.reservations) {
+    if (hidden.has(`r:${r.kind}`)) continue;
     if (day && !(r.start || '').startsWith(day) && !(r.end || '').startsWith(day) && !(r.kind === 'hotel' && r.start && r.end && r.start.slice(0, 10) <= day && r.end.slice(0, 10) >= day)) continue;
     const k = RES_KINDS[r.kind];
     if (r.kind === 'flight' && r.from?.lat != null && r.to?.lat != null) {
@@ -40,7 +42,7 @@ function collect(trip, { cats, day }) {
       res.push({ id: `r-${r.id}`, res: r, at: r.location, icon: k.icon, color: k.color });
     }
   }
-  const routes = day ? [] : trip.routes.filter(r => r.points?.length > 1);
+  const routes = day || hidden.has('routes') ? [] : trip.routes.filter(r => r.points?.length > 1);
   return { places, res, lines, routes };
 }
 
@@ -170,7 +172,7 @@ export function MiniMap({ trip, onOpen }) {
   const map = useLeafletMap(ref, { interactive: false });
   useEffect(() => {
     if (!map) return;
-    const data = collect(trip, { cats: new Set(), day: '' });
+    const data = collect(trip, { day: '' });
     const g = drawLayers(map, trip, data, {});
     fitPoints(map, focusPoints(trip, data), trip, { padding: [24, 24] });
     return () => g.remove();
@@ -271,7 +273,7 @@ function SelectedCard({ trip, sel, onClose }) {
 export function MapTab({ trip, route }) {
   const ref = useRef();
   const map = useLeafletMap(ref);
-  const [cats, setCats] = useState(new Set());
+  const [hidden, setHidden] = useState(new Set());
   const [day, setDay] = useState('');
   const [sel, setSel] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -289,7 +291,8 @@ export function MapTab({ trip, route }) {
 
   useEffect(() => { if (mobile) setPanel(false); }, [mobile]);
 
-  const data = useMemo(() => collect(trip, { cats, day }), [trip, cats, day]);
+  const data = useMemo(() => collect(trip, { hidden, day }), [trip, hidden, day]);
+  const toggleLayer = key => setHidden(s => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
   // Dibuja capas
   useEffect(() => {
@@ -366,12 +369,15 @@ export function MapTab({ trip, route }) {
     }, () => toast('No se pudo obtener tu ubicación. Revisa los permisos.', 'error'), { enableHighAccuracy: true, timeout: 12000 });
   };
 
-  const importNow = async () => { if (await openModal(ImportModal, { trip })) { setCats(new Set()); setDay(''); setSel(null); setTimeout(() => layerRef.current && fitPoints(map, focusPoints(trip, collect(getTrip(trip.id) || trip, { cats: new Set(), day: '' })), trip, { animate: true }), 120); } };
+  const importNow = async () => { if (await openModal(ImportModal, { trip })) { setHidden(new Set()); setDay(''); setSel(null); setTimeout(() => layerRef.current && fitPoints(map, focusPoints(trip, collect(getTrip(trip.id) || trip, { day: '' })), trip, { animate: true }), 120); } };
 
   const days = eachDay(trip.startDate, trip.endDate);
   const catCounts = {};
-  for (const p of trip.places) catCounts[p.category] = (catCounts[p.category] || 0) + 1;
-  const listPlaces = trip.places.filter(p => (!cats.size || cats.has(p.category)) && (!day || p.day === day));
+  for (const p of trip.places) if (p.lat != null) catCounts[p.category] = (catCounts[p.category] || 0) + 1;
+  const resCounts = {};
+  for (const r of trip.reservations) if (r.from?.lat != null || r.to?.lat != null || r.location?.lat != null) resCounts[r.kind] = (resCounts[r.kind] || 0) + 1;
+  const routeCount = trip.routes.filter(r => r.points?.length > 1).length;
+  const listPlaces = trip.places.filter(p => !hidden.has(`p:${p.category}`) && (!day || p.day === day));
   const dayStops = day ? trip.places.filter(p => p.day === day && p.lat != null).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')) : [];
   const empty = !trip.places.length && !trip.routes.length && !data.res.length;
 
@@ -408,9 +414,18 @@ export function MapTab({ trip, route }) {
         ${!results.length && html`<li class="results-none">Sin resultados. Prueba añadiendo la ciudad.</li>`}
       </ul>`}
 
-      ${(Object.keys(catCounts).length > 1 || days.length > 0) && html`<div class="panel-filters">
-        ${Object.keys(catCounts).length > 1 && html`<div class="chips chips-wrap">${Object.entries(catCounts).map(([k, n]) => html`<${Chip} icon=${PLACE_CATS[k]?.icon} active=${cats.has(k)} count=${n}
-          onClick=${() => setCats(s => { const x = new Set(s); x.has(k) ? x.delete(k) : x.add(k); return x; })}>${PLACE_CATS[k]?.label}</${Chip}>`)}</div>`}
+      ${(Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) > 1 || days.length > 0) && html`<div class="panel-filters">
+        ${Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) > 1 && html`<div class="layers">
+          <div class="layers-head"><span class="small muted">Mostrar en el mapa</span>${hidden.size > 0 && html`<button type="button" class="link-btn small" onClick=${() => setHidden(new Set())}>Ver todo</button>`}</div>
+          <div class="chips chips-wrap">
+            ${Object.entries(catCounts).map(([k, n]) => html`<${Chip} icon=${PLACE_CATS[k]?.icon} active=${!hidden.has(`p:${k}`)} count=${n}
+              onClick=${() => toggleLayer(`p:${k}`)}>${PLACE_CATS[k]?.label}</${Chip}>`)}
+            ${Object.entries(resCounts).map(([k, n]) => html`<${Chip} icon=${RES_KINDS[k]?.icon} active=${!hidden.has(`r:${k}`)} count=${n}
+              onClick=${() => toggleLayer(`r:${k}`)}>${RES_KINDS[k]?.label}</${Chip}>`)}
+            ${routeCount > 0 && html`<${Chip} icon="route" active=${!hidden.has('routes')} count=${routeCount}
+              onClick=${() => toggleLayer('routes')}>Rutas</${Chip}>`}
+          </div>
+        </div>`}
         ${days.length > 0 && html`<${Select} class="input input-sm" value=${day} onChange=${e => { setDay(e.target.value); fitted.current = false; }} aria-label="Filtrar por día">
           <option value="">Todos los días</option>${days.map((d, i) => html`<option value=${d}>Día ${i + 1} · ${fmtDate(d, 'weekday')}</option>`)}</${Select}>`}
       </div>`}

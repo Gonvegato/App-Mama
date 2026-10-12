@@ -8,8 +8,8 @@ import { loadLeaflet, baseLayer, currentMapStyle } from '../lib/leaflet-loader.j
 import { PLACE_CATS, RES_KINDS } from '../lib/model.js';
 import { ICONS } from '../lib/icon-data.js';
 import { updateTrip, getTrip } from '../lib/store.js';
-import { routeLengthKm, nearestOnRoute, fmtKm } from '../lib/geo-route.js';
-import { appleDirectionsUrl, googleDirectionsUrl, isApple } from '../lib/geo.js';
+import { routeLengthKm, nearestOnRoute, fmtKm, routeStats } from '../lib/geo-route.js';
+import { appleDirectionsUrl, googleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
 import { cx } from '../lib/util.js';
 
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -164,6 +164,53 @@ function RenameRoute({ close, trip, r }) {
   </${Modal}>`;
 }
 
+// Dibuja el perfil de altitud: altura frente a distancia recorrida.
+function ElevationProfile({ points }) {
+  const W = 520, H = 120, pad = 4;
+  const eles = [];
+  let dist = 0;
+  for (let i = 0; i < points.length; i++) {
+    if (i > 0) dist += distanceKm({ lat: points[i - 1][0], lng: points[i - 1][1] }, { lat: points[i][0], lng: points[i][1] });
+    if (points[i].length > 2 && isFinite(points[i][2])) eles.push({ x: dist, y: points[i][2] });
+  }
+  if (eles.length < 2) return null;
+  const maxX = eles[eles.length - 1].x || 1;
+  const ys = eles.map(e => e.y);
+  const minY = Math.min(...ys), maxY = Math.max(...ys), span = maxY - minY || 1;
+  const px = x => pad + (x / maxX) * (W - 2 * pad);
+  const py = y => pad + (1 - (y - minY) / span) * (H - 2 * pad);
+  const line = eles.map((e, i) => `${i ? 'L' : 'M'}${px(e.x).toFixed(1)} ${py(e.y).toFixed(1)}`).join(' ');
+  const area = `${line} L${px(maxX).toFixed(1)} ${H - pad} L${px(0).toFixed(1)} ${H - pad} Z`;
+  return html`<svg class="elev-svg" viewBox=${`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Perfil de altitud">
+    <path d=${area} class="elev-area" />
+    <path d=${line} class="elev-line" />
+  </svg>`;
+}
+
+// Menú con todo lo que se sabe de la ruta, y el botón para empezar.
+function RouteInfo({ close, trip, r, onFollow }) {
+  const s = routeStats(r);
+  const diffClass = `diff-${s.difficulty.level}`;
+  return html`<${Modal} title=${r.name} close=${close} size="md"
+    footer=${html`<${Btn} kind="primary" icon="navigation" onClick=${() => { close(); onFollow(r); }}>Empezar ruta</${Btn}>`}>
+    <div class="route-info">
+      <div class="ri-stats">
+        <div class="ri-stat"><small>Distancia</small><b>${fmtKm(s.lengthKm)}</b></div>
+        ${s.ele.has && html`<div class="ri-stat"><small>Subida</small><b>↑ ${s.ele.ascent} m</b></div>`}
+        ${s.ele.has && html`<div class="ri-stat"><small>Bajada</small><b>↓ ${s.ele.descent} m</b></div>`}
+        ${s.ele.has && html`<div class="ri-stat"><small>Altitud</small><b>${s.ele.min}–${s.ele.max} m</b></div>`}
+        <div class=${cx('ri-stat', 'ri-diff', diffClass)}><small>Dificultad</small><b>${s.difficulty.label}</b></div>
+      </div>
+      ${s.ele.has ? html`<div class="ri-profile">
+          <${ElevationProfile} points=${r.points} />
+          <div class="ri-profile-ax"><span>0</span><span>${fmtKm(s.lengthKm)}</span></div>
+        </div>`
+        : html`<p class="muted small"><${Icon} name="info" size=${15} /> Este archivo no trae datos de altitud, así que no se puede mostrar el desnivel ni el perfil. La dificultad es solo por distancia.</p>`}
+      <p class="muted small ri-note">La dificultad es orientativa (según distancia y subida, no el tipo de terreno). Para indicaciones calle a calle usa «Abrir en Maps» desde la lista.</p>
+    </div>
+  </${Modal}>`;
+}
+
 // ---------- Lista de rutas ----------
 function RouteCard({ trip, r, onFollow }) {
   const len = routeLengthKm(r.points);
@@ -173,16 +220,19 @@ function RouteCard({ trip, r, onFollow }) {
     if (await confirm('¿Quitar esta ruta?', `«${r.name}» se quitará del viaje.`, { okLabel: 'Quitar', danger: true }))
       updateTrip(trip.id, t => { t.routes = t.routes.filter(x => x.id !== r.id); });
   };
+  const s = routeStats(r);
+  const sub = [fmtKm(s.lengthKm), s.ele.has ? `↑ ${s.ele.ascent} m` : null, s.difficulty.label].filter(Boolean).join(' · ');
   return html`<article class="route-card" style=${`--kc:${r.color || '#4c6f86'}`}>
     <div class="route-head">
       <span class="route-ico"><${Icon} name="route" size=${18} /></span>
       <div class="route-text">
         <h3>${r.name}</h3>
-        <small>${fmtKm(len)} · ${r.points.length} puntos${r.straight ? ' · líneas rectas entre paradas' : ''}</small>
+        <small>${sub}${r.straight ? ' · líneas rectas entre paradas' : ''}</small>
       </div>
     </div>
     <div class="btn-row">
-      <${Btn} kind="primary" size="sm" icon="navigation" onClick=${() => onFollow(r)}>Seguir</${Btn}>
+      <${Btn} kind="primary" size="sm" icon="navigation" onClick=${() => onFollow(r)}>Empezar</${Btn}>
+      <${Btn} size="sm" icon="info" onClick=${() => openModal(RouteInfo, { trip, r, onFollow })}>Detalles</${Btn}>
       <a class="btn btn-default btn-sm" href=${isApple() ? appleDirectionsUrl(r.stops || ends) : googleDirectionsUrl(r.stops || ends)} target="_blank" rel="noopener"><${Icon} name="external" size=${15} /><span>Abrir en Maps</span></a>
       <${Btn} size="sm" kind="ghost" icon="edit" onClick=${rename}>Renombrar</${Btn}>
       <${Btn} size="sm" kind="ghost" icon="trash" onClick=${del}>Quitar</${Btn}>
