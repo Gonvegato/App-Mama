@@ -65,15 +65,20 @@ async function api(method, params = {}) {
   return data;
 }
 
-// Crea (si no existe) /Cuaderno de viajes/<carpeta> y devuelve su folderid.
+// Crea (si no existe) una carpeta por su ruta y devuelve su folderid.
 async function folderId(path) {
   const d = await api('createfolderifnotexists', { path });
   return d.metadata.folderid;
 }
-export async function pcloudTripFolder(tripName) {
+const safeName = s => (s || 'Viaje').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, 80) || 'Viaje';
+
+// Devuelve el folderid de una subcarpeta del viaje, creando toda la ruta:
+// /Cuaderno de viajes/<viaje>/<sub>  (sub por defecto «Fotos»; para archivar, «Documentos»).
+export async function pcloudTripFolder(tripName, sub = 'Fotos') {
   await folderId('/Cuaderno de viajes');
-  const safe = (tripName || 'Viaje').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, 80) || 'Viaje';
-  return folderId(`/Cuaderno de viajes/${safe}`);
+  const safe = safeName(tripName);
+  await folderId(`/Cuaderno de viajes/${safe}`);
+  return folderId(`/Cuaderno de viajes/${safe}/${safeName(sub)}`);
 }
 
 // Sube una foto a una carpeta. Devuelve los metadatos del archivo creado.
