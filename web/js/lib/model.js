@@ -103,10 +103,21 @@ export function normalizeTrip(t) {
 export const newReservation = (kind = 'flight', p = {}) => ({ id: sid(), kind, title: '', start: '', end: '', from: null, to: null, location: null, code: '', provider: '', number: '', seat: '', notes: '', url: '', price: null, docIds: [], ...p });
 export const newPlace = (p = {}) => ({ id: sid(), name: '', address: '', lat: null, lng: null, category: 'sight', day: '', notes: '', url: '', visited: false, source: 'manual', ...p });
 export const newRoute = (p = {}) => ({ id: sid(), name: 'Ruta', color: '#4c6f86', points: [], source: 'manual', ...p });
-// Un plan del día: hora, título, una nota más larga y fotos (ids de documentos del viaje).
-export const newPlanItem = (p = {}) => ({ id: sid(), time: '', text: '', note: '', photoIds: [], ...p });
-// Deja un plan con todos sus campos aunque venga de una versión antigua (sin nota ni fotos).
-export const planItem = it => ({ note: '', photoIds: [], time: '', text: '', ...it });
+// Un plan del día: hora, título, una nota más larga, fotos (ids de documentos del viaje)
+// y, si se indica, el sitio donde es (`where`: {name, address, lat, lng}) para verlo en el mapa.
+export const newPlanItem = (p = {}) => ({ id: sid(), time: '', text: '', note: '', photoIds: [], where: null, ...p });
+// Deja un plan con todos sus campos aunque venga de una versión antigua (sin nota, fotos ni lugar).
+export const planItem = it => ({ note: '', photoIds: [], time: '', text: '', where: null, ...it });
+
+// Planes del itinerario que tienen un lugar con coordenadas (para dibujarlos en el mapa).
+export function locatedPlans(trip, day = '') {
+  const out = [];
+  for (const [d, items] of Object.entries(trip.plan || {})) {
+    if (day && d !== day) continue;
+    for (const it of items) if (it.where?.lat != null && it.where?.lng != null) out.push({ ...planItem(it), day: d });
+  }
+  return out.sort((a, b) => a.day.localeCompare(b.day) || (a.time || '99').localeCompare(b.time || '99'));
+}
 
 export function resTitle(r, { short = false } = {}) {
   if (r.title) return r.title;

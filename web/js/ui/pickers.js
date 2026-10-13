@@ -4,8 +4,11 @@ import { Icon, IconBtn, Spinner } from './kit.js';
 import { geocode, searchAirports } from '../lib/geo.js';
 import { cx } from '../lib/util.js';
 
-export function PlaceSearch({ value, onChange, near, placeholder = 'Nombre o dirección', autoFocus }) {
-  const [q, setQ] = useState('');
+// `query`/`onQuery` (opcionales) dejan al formulario leer o rellenar lo que se está escribiendo.
+export function PlaceSearch({ value, onChange, near, placeholder = 'Nombre o dirección', autoFocus, query, onQuery }) {
+  const [q0, setQ0] = useState('');
+  const q = query ?? q0;
+  const setQ = v => { setQ0(v); onQuery?.(v); };
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState(null);
   const [editing, setEditing] = useState(!value);

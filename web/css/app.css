@@ -1033,6 +1033,8 @@ html.has-modal .main { overflow: hidden; }
 .plan-photo-add:disabled { opacity: .6; cursor: default; }
 .ag-photos { display: inline-flex; align-items: center; gap: .25rem; color: var(--ink-3); }
 .ag-photos .icon { color: var(--ink-3); }
+.ag-where { display: inline-flex; align-items: center; gap: .25rem; }
+.ag-where .icon { color: var(--ink-3); flex: none; }
 
 /* ---------- Panel del día (al pulsar un día del itinerario) ---------- */
 .day-head-btn { width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; align-items: center; padding: 0; color: inherit; font: inherit; border-radius: 10px; }

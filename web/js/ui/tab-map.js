@@ -3,13 +3,17 @@ import { html, useState, useEffect, useRef, useMemo } from '../../vendor/preact-
 import { Btn, Icon, IconBtn, Chip, Modal, Field, openModal, confirm, Spinner, Menu, useMedia, Select } from './kit.js';
 import { ImportModal } from './map-import.js';
 import { openReservation } from './tab-bookings.js';
+import { openPlan } from './tab-itinerary.js';
 import { ICONS } from '../lib/icon-data.js';
 import { loadLeaflet, baseLayer, currentMapStyle, MAP_STYLES } from '../lib/leaflet-loader.js';
-import { PLACE_CATS, RES_KINDS, newPlace, resTitle, isTransport } from '../lib/model.js';
+import { PLACE_CATS, RES_KINDS, newPlace, resTitle, isTransport, locatedPlans } from '../lib/model.js';
 import { updateTrip, toast, useStore, setPrefs, getTrip } from '../lib/store.js';
 import { isRouteInstruction } from '../lib/importers.js';
 import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, googleDirectionsUrl, appleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
 import { eachDay, fmtDate, cx } from '../lib/util.js';
+
+// Planes del itinerario con lugar: se dibujan con su propio color e icono.
+const PLAN_MARK = { label: 'Planes del itinerario', icon: 'notes', color: '#3f7472' };
 
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -22,9 +26,11 @@ function markerIcon(L, { color, icon, shape = 'round', selected, faded, label })
 }
 
 // Elementos dibujables de un viaje. `hidden` es un conjunto de capas ocultas:
-// «p:<categoría>» para lugares, «r:<tipo>» para reservas y «routes» para las rutas.
+// «p:<categoría>» para lugares, «r:<tipo>» para reservas, «plans» para los planes
+// del itinerario con lugar y «routes» para las rutas.
 function collect(trip, { hidden = new Set(), day }) {
   const places = trip.places.filter(p => p.lat != null && !hidden.has(`p:${p.category}`) && (!day || p.day === day));
+  const plans = hidden.has('plans') ? [] : locatedPlans(trip, day);
   const res = [];
   const lines = [];
   for (const r of trip.reservations) {
@@ -44,7 +50,7 @@ function collect(trip, { hidden = new Set(), day }) {
     }
   }
   const routes = day || hidden.has('routes') ? [] : trip.routes.filter(r => r.points?.length > 1);
-  return { places, res, lines, routes };
+  return { places, plans, res, lines, routes };
 }
 
 // ---------- Mapa reutilizable ----------
@@ -113,6 +119,13 @@ function drawLayers(map, trip, data, { selected, onSelect, labels }) {
     if (onSelect) m.on('click', () => onSelect({ type: 'place', id: p.id }));
     group.addLayer(m);
   }
+  for (const it of data.plans) {
+    const sel = selected?.type === 'plan' && selected.id === it.id;
+    const m = L.marker([it.where.lat, it.where.lng], { icon: markerIcon(L, { color: PLAN_MARK.color, icon: PLAN_MARK.icon, selected: sel, label: labels && dayIndex.get(it.day) ? `D${dayIndex.get(it.day)}` : null }), riseOnHover: true, zIndexOffset: sel ? 1000 : 0 });
+    m.bindTooltip(esc(it.text && it.text !== it.where.name ? `${it.text} · ${it.where.name}` : it.where.name), { direction: 'top', offset: [0, -14] });
+    if (onSelect) m.on('click', () => onSelect({ type: 'plan', id: it.id }));
+    group.addLayer(m);
+  }
   group.addTo(map);
   return group;
 }
@@ -148,9 +161,10 @@ function fit(map, group, trip, opts = {}) {
 function focusPoints(trip, data) {
   const pts = [], airports = [];
   for (const p of data.places) pts.push([p.lat, p.lng]);
+  for (const it of data.plans) pts.push([it.where.lat, it.where.lng]);
   for (const r of data.res) (r.res.kind === 'flight' ? airports : pts).push([r.at.lat, r.at.lng]);
   for (const r of data.routes) for (const q of r.points.filter((_, i) => i % 10 === 0)) pts.push(q);
-  const c = trip.center || (data.places[0] ? { lat: data.places[0].lat, lng: data.places[0].lng } : null);
+  const c = trip.center || (data.places[0] ? { lat: data.places[0].lat, lng: data.places[0].lng } : data.plans[0] ? { lat: data.plans[0].where.lat, lng: data.plans[0].where.lng } : null);
   if (!c) return pts.length ? pts : airports;
   const d = ([lat, lng]) => distanceKm(c, { lat, lng });
   // Aeropuertos solo si están junto al destino; el resto, si no está muy lejos.
@@ -244,6 +258,24 @@ function SelectedCard({ trip, sel, onClose }) {
       </div>
     </div>`;
   }
+  if (sel.type === 'plan') {
+    const it = locatedPlans(trip).find(x => x.id === sel.id);
+    if (!it) return null;
+    const w = it.where;
+    const days = eachDay(trip.startDate, trip.endDate);
+    const n = days.indexOf(it.day) + 1;
+    return html`<div class="map-card-sel" style=${`--kc:${PLAN_MARK.color}`}>
+      <div class="sel-head"><span class="sel-ico"><${Icon} name=${PLAN_MARK.icon} size=${18} /></span>
+        <div><small>Plan · ${n > 0 ? `Día ${n}` : fmtDate(it.day, 'weekday')}${it.time ? ` · ${it.time}` : ''}</small><h3>${it.text}</h3></div>
+        <${IconBtn} icon="x" label="Cerrar" onClick=${onClose} /></div>
+      <p class="muted small"><${Icon} name="pin" size=${14} /> ${[w.name !== it.text && w.name, w.address].filter(Boolean).join(' · ') || w.name}</p>
+      ${it.note && html`<p class="sel-notes">${it.note}</p>`}
+      <div class="btn-row">
+        <a class="btn btn-primary btn-sm" href=${isApple() ? appleMapsUrl(w) : googleMapsUrl(w)} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Cómo llegar</span></a>
+        <${Btn} size="sm" icon="edit" onClick=${() => openPlan(trip, it.day, trip.plan[it.day]?.find(x => x.id === it.id))}>Ver o editar plan</${Btn}>
+      </div>
+    </div>`;
+  }
   if (sel.type === 'res') {
     const r = trip.reservations.find(x => x.id === sel.id);
     if (!r) return null;
@@ -310,6 +342,9 @@ export function MapTab({ trip, route }) {
     if (type === 'p') {
       const p = trip.places.find(x => x.id === id);
       if (p?.lat != null) { setSel({ type: 'place', id }); setTimeout(() => focusOn(map, [p.lat, p.lng], 16), 50); fitted.current = true; }
+    } else if (type === 'n') {
+      const it = locatedPlans(trip).find(x => x.id === id);
+      if (it) { setSel({ type: 'plan', id }); setTimeout(() => focusOn(map, [it.where.lat, it.where.lng], 16), 50); fitted.current = true; }
     } else if (type === 'r') {
       const r = trip.reservations.find(x => x.id === id);
       const pts = [r?.from, r?.to, r?.location].filter(x => x?.lat != null);
@@ -378,6 +413,8 @@ export function MapTab({ trip, route }) {
   const resCounts = {};
   for (const r of trip.reservations) if (r.from?.lat != null || r.to?.lat != null || r.location?.lat != null) resCounts[r.kind] = (resCounts[r.kind] || 0) + 1;
   const routeCount = trip.routes.filter(r => r.points?.length > 1).length;
+  const planCount = locatedPlans(trip).length;
+  const listPlans = hidden.has('plans') ? [] : locatedPlans(trip, day);
   const listPlaces = trip.places.filter(p => !hidden.has(`p:${p.category}`) && (!day || p.day === day));
   const junk = trip.places.filter(p => isRouteInstruction(p.name));
   const cleanJunk = async () => {
@@ -387,8 +424,12 @@ export function MapTab({ trip, route }) {
     setSel(null);
     toast('Indicaciones quitadas', 'ok');
   };
-  const dayStops = day ? trip.places.filter(p => p.day === day && p.lat != null).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')) : [];
-  const empty = !trip.places.length && !trip.routes.length && !data.res.length;
+  // Paradas del día: lugares con día y planes con lugar, por hora.
+  const dayStops = day ? [
+    ...trip.places.filter(p => p.day === day && p.lat != null),
+    ...locatedPlans(trip, day).map(it => ({ ...it.where, time: it.time })),
+  ].sort((a, b) => (a.time || '99').localeCompare(b.time || '99')) : [];
+  const empty = !trip.places.length && !trip.routes.length && !data.res.length && !planCount;
 
   return html`<div class="map-wrap">
     <div class="map" ref=${ref}></div>
@@ -429,14 +470,16 @@ export function MapTab({ trip, route }) {
         <${Btn} size="sm" icon="trash" onClick=${cleanJunk}>Quitar${junk.length > 1 ? ` (${junk.length})` : ''}</${Btn}>
       </div>`}
 
-      ${(Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) > 1 || days.length > 0) && html`<div class="panel-filters">
-        ${Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) > 1 && html`<div class="layers">
+      ${(Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) + (planCount ? 1 : 0) > 1 || days.length > 0) && html`<div class="panel-filters">
+        ${Object.keys(catCounts).length + Object.keys(resCounts).length + (routeCount ? 1 : 0) + (planCount ? 1 : 0) > 1 && html`<div class="layers">
           <div class="layers-head"><span class="small muted">Mostrar en el mapa</span>${hidden.size > 0 && html`<button type="button" class="link-btn small" onClick=${() => setHidden(new Set())}>Ver todo</button>`}</div>
           <div class="chips chips-wrap">
             ${Object.entries(catCounts).map(([k, n]) => html`<${Chip} icon=${PLACE_CATS[k]?.icon} active=${!hidden.has(`p:${k}`)} count=${n}
               onClick=${() => toggleLayer(`p:${k}`)}>${PLACE_CATS[k]?.label}</${Chip}>`)}
             ${Object.entries(resCounts).map(([k, n]) => html`<${Chip} icon=${RES_KINDS[k]?.icon} active=${!hidden.has(`r:${k}`)} count=${n}
               onClick=${() => toggleLayer(`r:${k}`)}>${RES_KINDS[k]?.label}</${Chip}>`)}
+            ${planCount > 0 && html`<${Chip} icon=${PLAN_MARK.icon} active=${!hidden.has('plans')} count=${planCount}
+              onClick=${() => toggleLayer('plans')}>Planes</${Chip}>`}
             ${routeCount > 0 && html`<${Chip} icon="route" active=${!hidden.has('routes')} count=${routeCount}
               onClick=${() => toggleLayer('routes')}>Rutas</${Chip}>`}
           </div>
@@ -463,11 +506,17 @@ export function MapTab({ trip, route }) {
               <span class="pl-text"><b>${p.name}</b><small>${[p.day ? `Día ${days.indexOf(p.day) + 1}` : '', p.lat == null ? 'sin ubicación' : '', p.address].filter(Boolean).join(' · ')}</small></span>
             </button></li>`;
         })}
+        ${listPlans.length > 0 && html`<li class="pl-sep">Planes del itinerario</li>`}
+        ${listPlans.map(it => html`<li class=${cx(sel?.type === 'plan' && sel.id === it.id && 'is-sel')}>
+          <button type="button" onClick=${() => { setSel({ type: 'plan', id: it.id }); if (mobile) setPanel(false); setTimeout(() => focusOn(map, [it.where.lat, it.where.lng], Math.max(map.getZoom(), 15)), mobile ? 60 : 0); }}>
+            <span class="pl-dot" style=${`--kc:${PLAN_MARK.color}`}><${Icon} name=${PLAN_MARK.icon} size=${14} /></span>
+            <span class="pl-text"><b>${it.text}</b><small>${[days.includes(it.day) ? `Día ${days.indexOf(it.day) + 1}` : fmtDate(it.day, 'weekday'), it.time, it.where.name !== it.text ? it.where.name : '', it.where.address].filter(Boolean).join(' · ')}</small></span>
+          </button></li>`)}
         ${trip.routes.length > 0 && !day && html`<li class="pl-sep">Rutas</li>`}
         ${!day && trip.routes.map(r => html`<li class=${cx(sel?.type === 'route' && sel.id === r.id && 'is-sel')}><button type="button" onClick=${() => { setSel({ type: 'route', id: r.id }); if (mobile) setPanel(false); map.fitBounds(r.points, { paddingTopLeft: [mobile ? 40 : panelOffset(map) + 40, 60], paddingBottomRight: [40, 40] }); }}>
           <span class="pl-dot" style=${`--kc:${r.color}`}><${Icon} name="route" size=${14} /></span><span class="pl-text"><b>${r.name}</b><small>${r.points.length} puntos</small></span></button></li>`)}
       </ul>`}
-      <p class="map-legend small muted"><span class="lg lg-round"></span> lugares <span class="lg lg-square"></span> reservas <span class="lg lg-dash"></span> trayectos</p>
+      <p class="map-legend small muted"><span class="lg lg-round"></span> lugares y planes <span class="lg lg-square"></span> reservas <span class="lg lg-dash"></span> trayectos</p>
     </aside>`}
 
     ${sel && html`<${SelectedCard} trip=${trip} sel=${sel} onClose=${() => setSel(null)} />`}

@@ -9,6 +9,8 @@ import { TripForm } from './trip-form.js';
 import { fmtDate, sid, cx, daysBetween } from '../lib/util.js';
 import { go, tripPath } from '../lib/router.js';
 import { forecast } from '../lib/weather.js';
+import { geocode } from '../lib/geo.js';
+import { PlaceSearch } from './pickers.js';
 
 const PHASE = { start: '', end: 'Salida', during: 'Noche en', arrive: 'Llegada' };
 
@@ -44,6 +46,10 @@ function PlanModal({ close, trip, day, it }) {
   const [keep, setKeep] = useState(() => base.photoIds.map(id => trip.docs.find(d => d.id === id)).filter(Boolean));
   const [fresh, setFresh] = useState([]);
   const [uploading, setUploading] = useState(false);
+  // Lugar del plan (para que salga en el mapa) y lo que se ha escrito en el buscador sin buscar aún.
+  const [where, setWhere] = useState(base.where);
+  const [whereQ, setWhereQ] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const addPhotos = async () => {
     const files = await pickFiles({ accept: 'image/*', capture: 'environment' });
@@ -59,18 +65,38 @@ function PlanModal({ close, trip, day, it }) {
     setUploading(false);
   };
 
-  const save = () => {
+  // Si se ha escrito un lugar pero no se ha elegido de la lista, se busca solo al guardar
+  // y se coge el primer resultado (cerca del destino del viaje).
+  const resolveWhere = async () => {
+    if (where) return where;
+    const q = whereQ.trim();
+    if (!q) return null;
+    const near = trip.center || undefined;
+    try {
+      const hit = (await geocode(trip.destination && !q.toLowerCase().includes(trip.destination.toLowerCase()) ? `${q}, ${trip.destination}` : q, { near, limit: 1 }))[0]
+        || (await geocode(q, { near, limit: 1 }))[0];
+      if (hit) return { name: hit.name || q, address: hit.address || '', lat: hit.lat, lng: hit.lng };
+    } catch { /* sin conexión: se guarda sin ubicación */ }
+    toast(`No he encontrado «${q}» en el mapa. Se guarda el nombre; puedes buscarlo con otras palabras.`, 'error');
+    return { name: q, address: '', lat: null, lng: null };
+  };
+
+  const save = async () => {
+    if (saving) return;
     const v = text.trim();
     const n = note.trim();
     const photos = [...keep, ...fresh];
     // Un plan sin título, nota ni fotos no se guarda (y si existía, se borra).
-    if (!v && !n && !photos.length) {
+    if (!v && !n && !photos.length && !where && !whereQ.trim()) {
       if (editing) removePlan(trip, day, base, { ask: false });
       else cleanFresh();
       close();
       return;
     }
-    const item = { ...base, time, text: v || (n ? n.split('\n')[0].slice(0, 60) : 'Plan'), note: n, photoIds: photos.map(p => p.id) };
+    setSaving(true);
+    const w = await resolveWhere();
+    setSaving(false);
+    const item = { ...base, time, text: v || w?.name || (n ? n.split('\n')[0].slice(0, 60) : 'Plan'), note: n, photoIds: photos.map(p => p.id), where: w };
     const removedIds = base.photoIds.filter(id => !keep.some(k => k.id === id));
     const removedDocs = removedIds.map(id => trip.docs.find(d => d.id === id)).filter(Boolean);
     updateTrip(trip.id, t => {
@@ -92,13 +118,18 @@ function PlanModal({ close, trip, day, it }) {
     footer=${html`
       ${editing && html`<${Btn} kind="ghost" icon="trash" onClick=${() => { removePlan(trip, day, base); close(); }}>Borrar</${Btn}>`}
       <${Btn} kind="ghost" onClick=${cancel}>Cancelar</${Btn}>
-      <${Btn} kind="primary" type="submit">${editing ? 'Guardar' : 'Añadir'}</${Btn}>`}>
+      <${Btn} kind="primary" type="submit" disabled=${saving}>${saving ? 'Buscando el lugar…' : editing ? 'Guardar' : 'Añadir'}</${Btn}>`}>
     <div class="form-grid">
       <${Field} label="Hora (opcional)" wide=${false}><input class="input input-time" type="time" value=${time} onInput=${e => setTime(e.target.value)} aria-label="Hora" /></${Field}>
       <${Field} label="Título" wide><div class="mic-row">
         <input class="input" value=${text} autofocus placeholder="Ej.: Paseo por el casco antiguo" onInput=${e => setText(e.target.value)} />
         <${MicButton} title="Dictar el título" onText=${t => setText(v => (v ? v + ' ' : '') + t)} />
       </div></${Field}>
+      <${Field} label="Lugar (opcional)" wide hint="Escribe el sitio y pulsa «Buscar» para elegirlo. Así aparecerá en el mapa.">
+        <${PlaceSearch} value=${where} onChange=${setWhere} near=${trip.center || undefined} query=${whereQ} onQuery=${setWhereQ}
+          placeholder=${text.trim() ? `Ej.: ${text.trim()}` : 'Ej.: Museo del Prado'} />
+        ${!where && !whereQ.trim() && text.trim() && html`<button type="button" class="link-btn small" onClick=${() => setWhereQ(text.trim())}>Usar el título como lugar</button>`}
+      </${Field}>
       <${Field} label="Nota" wide><div class="mic-row mic-row-area">
         <textarea class="input" rows="4" value=${note} placeholder="Escribe o dicta lo que quieras recordar de este plan…" onInput=${e => setNote(e.target.value)}></textarea>
         <${MicButton} title="Dictar la nota" onText=${t => setNote(v => (v ? v + ' ' : '') + t)} />
@@ -168,10 +199,13 @@ export function AgendaItem({ item, trip, compact }) {
     <button type="button" class="ag-body" onClick=${() => openPlan(trip, day, it)}>
       <span class="ag-ico"><${Icon} name="notes" size=${16} /></span>
       <span class="ag-text"><b>${it.text}</b>
+        ${it.where && !compact && (it.where.name !== it.text || it.where.lat == null) && html`<small class="ag-where"><${Icon} name="pin" size=${13} /> ${it.where.name}${it.where.lat == null ? ' (sin ubicar)' : ''}</small>`}
         ${it.note && html`<small>${it.note.split('\n')[0]}</small>`}
         ${nPhotos > 0 && html`<small class="ag-photos"><${Icon} name="image" size=${13} /> ${nPhotos} foto${nPhotos > 1 ? 's' : ''}</small>`}
       </span>
     </button>
+    ${!compact && it.where?.lat != null && html`<${IconBtn} icon="map" label="Ver en el mapa" class="ag-visit"
+      onClick=${() => go(`${tripPath(trip.id, 'mapa')}/n-${it.id}`)} />`}
   </li>`;
 }
 
