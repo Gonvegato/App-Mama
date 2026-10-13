@@ -7,12 +7,14 @@ const MAX_TILES = 2500;
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL);
-    await c.addAll(['./', './index.html', './pcloud-oauth.html', './css/app.css', './config.js', './manifest.webmanifest',
+    // «reload»: se descargan de nuevo, sin usar la caché del navegador (que podría ser la versión vieja).
+    const files = ['./', './index.html', './pcloud-oauth.html', './css/app.css', './config.js', './manifest.webmanifest',
       './vendor/preact-htm.js', './vendor/supabase.js', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/jszip.min.js', './vendor/qrcode.mjs',
       './vendor/maplibre/maplibre-gl.js', './vendor/maplibre/maplibre-gl.css', './vendor/maplibre/leaflet-maplibre-gl.js',
       './vendor/pdfjs/pdf.min.mjs', './vendor/pdfjs/pdf.worker.min.mjs',
       './fonts/newsreader-latin-opsz-normal.woff2', './fonts/newsreader-latin-opsz-italic.woff2', './fonts/newsreader-latin-ext-opsz-normal.woff2',
-      './icons/icon-192.png', './icons/icon.svg', './data/airports.json']);
+      './icons/icon-192.png', './icons/icon.svg', './data/airports.json'];
+    await c.addAll(files.map(u => new Request(u, { cache: 'reload' })));
     self.skipWaiting();
   })());
 });
@@ -66,7 +68,9 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     const c = await caches.open(SHELL);
     try {
-      const res = await fetch(req);
+      // «no-cache»: el navegador pregunta siempre al servidor si hay versión nueva
+      // (GitHub Pages deja guardar los archivos 10 minutos y se veía la versión vieja).
+      const res = await fetch(req, { cache: 'no-cache' });
       if (res.ok) c.put(req, res.clone());
       return res;
     } catch {
