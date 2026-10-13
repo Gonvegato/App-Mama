@@ -1052,3 +1052,15 @@ html.has-modal .main { overflow: hidden; }
 .trip-full .mail-suggest { margin-left: 1rem; margin-right: 1rem; }
 .mail-suggest-note { color: var(--ink-2); font-size: .9rem; margin-bottom: .6rem; }
 @media (max-width: 560px) { .mail-suggest { margin-left: .7rem; margin-right: .7rem; } .plan-photo, .plan-photo-add { width: 4.6rem; height: 4.6rem; } }
+
+/* ---------- Fotos (pCloud) ---------- */
+.photos-tab .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: .5rem; margin-top: .6rem; }
+.photo-tile { padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2); aspect-ratio: 1; cursor: pointer; display: block; }
+.photo-tile:hover { border-color: var(--accent); }
+.photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-ph { width: 100%; height: 100%; display: grid; place-items: center; color: var(--ink-3); }
+.photo-viewer .photo-stage { display: grid; place-items: center; min-height: 40vh; max-height: 78vh; }
+.photo-viewer .photo-stage img { max-width: 100%; max-height: 78vh; object-fit: contain; border-radius: var(--radius-sm); }
+code.break { word-break: break-all; display: inline-block; background: var(--surface-2); padding: .15rem .4rem; border-radius: 6px; font-size: .86rem; }
+@media (max-width: 560px) { .photo-grid { grid-template-columns: repeat(auto-fill, minmax(6.2rem, 1fr)); } }

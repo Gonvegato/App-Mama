@@ -1,6 +1,8 @@
 // Punto de entrada de la app.
 import { html, render, useEffect } from '../vendor/preact-htm.js';
 import { useStore, boot, state, subscribe } from './lib/store.js';
+import { pcloudCaptureRedirect } from './lib/pcloud.js';
+import { toast } from './lib/store.js';
 import { initUsb, scheduleSync } from './lib/usb.js';
 import { applyTheme, watchSystemTheme } from './lib/theme.js';
 import { useRoute } from './lib/router.js';
@@ -42,7 +44,11 @@ function App() {
 applyTheme(state.prefs);
 watchSystemTheme(() => state.prefs);
 render(html`<${App} />`, document.getElementById('app'));
-boot().then(() => initUsb()).then(on => {
+boot().then(async () => {
+  // Al volver de pCloud, se guarda el permiso en los ajustes.
+  try { if (await pcloudCaptureRedirect()) toast('pCloud conectado. Ya puedes subir fotos.', 'ok'); } catch { /* nada */ }
+  return initUsb();
+}).then(on => {
   if (!on) return;
   // Cada vez que cambian los viajes (archivo nuevo, enlace nuevo…), se copia al USB.
   let last = state.trips;

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conectando con pCloud…</title>
+  <style>
+    body { font-family: Georgia, 'Times New Roman', serif; background: #f6f2ea; color: #2a2620; display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 24px; text-align: center; }
+    @media (prefers-color-scheme: dark) { body { background: #17181b; color: #ece6dc; } }
+    .card { max-width: 24rem; }
+    a { color: #8a5a3c; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <p id="msg">Conectando con pCloud…</p>
+    <p><a id="back" href="./#/ajustes/fotos">Volver a la app</a></p>
+  </div>
+  <script>
+    (function () {
+      // pCloud devuelve el resultado en el «fragmento» de la dirección (tras #).
+      var out = {};
+      try {
+        var frag = (location.hash || '').replace(/^#/, '');
+        // Si hubo error, puede venir en la query (?error=...).
+        var q = new URLSearchParams(location.search);
+        if (q.get('error')) out.error = q.get('error');
+        var p = new URLSearchParams(frag);
+        if (p.get('access_token')) {
+          out.access_token = p.get('access_token');
+          out.token_type = p.get('token_type') || 'bearer';
+          out.hostname = p.get('hostname') || 'api.pcloud.com';
+          out.locationid = parseInt(p.get('locationid') || '1', 10);
+          out.userid = p.get('userid') || p.get('uid') || '';
+        } else if (!out.error) {
+          out.error = 'sin_token';
+        }
+      } catch (e) { out = { error: 'fallo' }; }
+      try { localStorage.setItem('cv-pcloud-oauth', JSON.stringify(out)); } catch (e) {}
+      var ok = !!out.access_token;
+      document.getElementById('msg').textContent = ok
+        ? 'pCloud conectado. Volviendo a la app…'
+        : 'No se pudo conectar con pCloud. Vuelve a intentarlo desde Ajustes → Fotos.';
+      // Se limpia el token de la barra de direcciones y se vuelve a la app.
+      setTimeout(function () { location.replace('./#/ajustes/fotos'); }, ok ? 900 : 2500);
+    })();
+  </script>
+</body>
+</html>

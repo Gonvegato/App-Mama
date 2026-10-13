@@ -11,6 +11,7 @@ import { RoutesTab } from './tab-routes.js';
 import { BookingsTab } from './tab-bookings.js';
 import { DocsTab } from './tab-docs.js';
 import { MailTab, MailSuggestionsBanner } from './tab-mail.js';
+import { PhotosTab } from './tab-photos.js';
 import { scanTripMail } from '../lib/mail-scan.js';
 import { PackingTab } from './tab-packing.js';
 import { ExpensesTab } from './tab-expenses.js';
@@ -26,6 +27,7 @@ export const TABS = [
   { id: 'rutas', label: 'Rutas', icon: 'route', C: RoutesTab, count: t => t.routes.filter(r => r.points?.length > 1).length },
   { id: 'reservas', label: 'Reservas', icon: 'ticket', C: BookingsTab, count: t => t.reservations.length },
   { id: 'documentos', label: 'Documentos', icon: 'file', C: DocsTab, count: t => t.docs.length },
+  { id: 'fotos', label: 'Fotos', icon: 'image', C: PhotosTab, count: t => (t.photos?.length || 0) },
   { id: 'correos', label: 'Correos', icon: 'mail', C: MailTab, count: t => t.emails.length },
   { id: 'maleta', label: 'Maleta', icon: 'suitcase', C: PackingTab, count: t => (t.packing.length ? `${t.packing.filter(p => p.done).length}/${t.packing.length}` : 0) },
   { id: 'gastos', label: 'Gastos', icon: 'wallet', C: ExpensesTab },

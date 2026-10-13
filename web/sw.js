@@ -1,5 +1,5 @@
 // Service worker: la app abre sin conexión y guarda los trozos de mapa ya vistos.
-const VERSION = 'cv-1.0.8';
+const VERSION = 'cv-1.0.9';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'mapa-v2';
 const MAX_TILES = 2500;
@@ -7,7 +7,7 @@ const MAX_TILES = 2500;
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL);
-    await c.addAll(['./', './index.html', './css/app.css', './config.js', './manifest.webmanifest',
+    await c.addAll(['./', './index.html', './pcloud-oauth.html', './css/app.css', './config.js', './manifest.webmanifest',
       './vendor/preact-htm.js', './vendor/supabase.js', './vendor/leaflet/leaflet.js', './vendor/leaflet/leaflet.css', './vendor/jszip.min.js', './vendor/qrcode.mjs',
       './vendor/maplibre/maplibre-gl.js', './vendor/maplibre/maplibre-gl.css', './vendor/maplibre/leaflet-maplibre-gl.js',
       './vendor/pdfjs/pdf.min.mjs', './vendor/pdfjs/pdf.worker.min.mjs',

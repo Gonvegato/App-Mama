@@ -5,12 +5,13 @@ import { THEMES, TEXT_SIZES } from '../lib/theme.js';
 import { MAP_STYLES } from '../lib/leaflet-loader.js';
 import { useStore, setPrefs, saveSettings, signOut, resetConfig, refresh, exportAll, importTrip, toast, getBackend } from '../lib/store.js';
 import { gmailPing } from '../lib/gmail.js';
+import { pcloudConfigured, pcloudConnect, pcloudDisconnect, pcloudRedirectUri, pcloudRegion, pcloudClientId } from '../lib/pcloud.js';
 import { downloadBlob, cx, todayISO } from '../lib/util.js';
 import qrcode from '../../vendor/qrcode.mjs';
 import { StorageSection } from './storage.js';
 import { UsbSection } from './usb-panel.js';
 
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 
 function Section({ id, icon, title, children, intro }) {
   return html`<section class="set-section card" id=${`ajustes-${id}`}>
@@ -140,6 +141,43 @@ function Backup() {
   </${Section}>`;
 }
 
+function Pcloud() {
+  const settings = useStore(s => s.settings);
+  const connected = pcloudConfigured();
+  const [id, setId] = useState(pcloudClientId());
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setId(pcloudClientId()); }, [settings.pcloud?.clientId]);
+  const redirect = pcloudRedirectUri();
+  const connect = async () => {
+    setBusy(true);
+    try { await pcloudConnect(id); }        // redirige a pCloud; no vuelve aquí
+    catch (e) { toast(e.message, 'error'); setBusy(false); }
+  };
+  return html`<${Section} id="fotos" icon="image" title="Fotos (pCloud)"
+    intro="Para el apartado Fotos de cada viaje. Las fotos se suben a una cuenta de pCloud y se ven dentro de la app. Se conecta una vez y vale en todos los dispositivos.">
+    ${connected ? html`<p class="status-ok"><${Icon} name="check-circle" size=${18} /> Conectado con pCloud (${pcloudRegion()})</p>` : ''}
+    <div class="form-grid">
+      <${Field} label="ID de la aplicación de pCloud (Client ID)" hint="Lo obtienes al registrar una aplicación en pCloud (ver más abajo). No es secreto.">
+        <input class="input" value=${id} onInput=${e => setId(e.target.value)} placeholder="Ej.: kZ8sR3xAbcd" spellcheck="false" /></${Field}>
+    </div>
+    <div class="btn-row">
+      <${Btn} kind="primary" icon=${busy ? undefined : 'cloud'} onClick=${connect} disabled=${busy || !id.trim()}>${busy ? html`<${Spinner} size=${16} /> Abriendo pCloud…` : connected ? 'Volver a conectar' : 'Conectar pCloud'}</${Btn}>
+      ${connected && html`<${Btn} kind="ghost" onClick=${async () => { if (await confirm('¿Desconectar pCloud?', 'Las fotos ya subidas siguen en pCloud; dejarás de verlas y subirlas desde la app hasta que vuelvas a conectar.', { okLabel: 'Desconectar' })) { await pcloudDisconnect(); toast('pCloud desconectado', 'ok'); } }}>Desconectar</${Btn}>`}
+    </div>
+    <details class="howto"><summary>Cómo registrar la aplicación de pCloud (una sola vez)</summary>
+      <ol>
+        <li>Con la cuenta de pCloud donde quieras guardar las fotos, entra en <a href="https://docs.pcloud.com/my_apps/" target="_blank" rel="noopener">My applications de pCloud</a> y pulsa <b>New application</b>.</li>
+        <li>Ponle un nombre (p. ej. «Cuaderno de viajes»).</li>
+        <li>En <b>Redirect URI</b> pega exactamente esta dirección:
+          <br /><code class="break">${redirect}</code> <${IconBtn} icon="copy" label="Copiar" onClick=${() => copyText(redirect).then(() => toast('Dirección copiada', 'ok'))} /></li>
+        <li>Guarda. Copia el <b>Client ID</b> que te da y pégalo aquí arriba.</li>
+        <li>Pulsa <b>Conectar pCloud</b>, inicia sesión en pCloud y acepta. Volverás a la app ya conectado.</li>
+      </ol>
+      <p class="muted small">El permiso da acceso a la cuenta de pCloud; la app solo escribe en la carpeta «Cuaderno de viajes». Puedes revocarlo cuando quieras desde los ajustes de pCloud.</p>
+    </details>
+  </${Section}>`;
+}
+
 export function Settings({ route }) {
   const s = useStore();
   const prefs = s.prefs;
@@ -195,6 +233,8 @@ export function Settings({ route }) {
     <${UsbSection} />
 
     <${Gmail} />
+
+    <${Pcloud} />
 
     <${Section} id="movil" icon="compass" title="Usarla en el móvil"
       intro=${url ? 'Abre esta dirección en el móvil (o escanea el código con la cámara) y entra con el mismo correo y contraseña.' : 'Cuando la web esté publicada, aquí aparecerá su dirección y un código para abrirla con la cámara del móvil.'}>

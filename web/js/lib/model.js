@@ -93,7 +93,7 @@ export function normalizeTrip(t) {
   trip.notes = trip.notes || '';
   trip.budget = trip.budget || { amount: 0, currency: 'EUR' };
   trip.center = trip.center || null; // {lat,lng} del destino
-  for (const k of ['reservations', 'places', 'routes', 'docs', 'emails', 'packing', 'expenses', 'links'])
+  for (const k of ['reservations', 'places', 'routes', 'docs', 'emails', 'packing', 'expenses', 'links', 'photos'])
     trip[k] = Array.isArray(trip[k]) ? trip[k] : [];
   trip.plan = trip.plan && typeof trip.plan === 'object' ? trip.plan : {};
   trip.archived = !!trip.archived;
