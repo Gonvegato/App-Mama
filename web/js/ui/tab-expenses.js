@@ -1,6 +1,6 @@
 // Pestaña Gastos: presupuesto, gastos del viaje y reservas pagadas.
 import { html, useState } from '../../vendor/preact-htm.js';
-import { Btn, Icon, Empty, Modal, Field, openModal, confirm, Progress, Select } from './kit.js';
+import { Btn, Icon, Empty, Modal, Field, openModal, confirm, Progress, Select, Toggle } from './kit.js';
 import { EXPENSE_CATS, RES_KINDS, resTitle } from '../lib/model.js';
 import { updateTrip, toast } from '../lib/store.js';
 import { openReservation } from './tab-bookings.js';
@@ -11,7 +11,7 @@ const RES_TO_CAT = { flight: 'transporte', train: 'transporte', bus: 'transporte
 function ExpenseForm({ close, trip, exp }) {
   const today = todayISO();
   const defDate = trip.startDate && today >= trip.startDate && today <= (trip.endDate || trip.startDate) ? today : (trip.startDate || today);
-  const [e, setE] = useState(() => exp ? { ...exp, amountTxt: String(exp.amount).replace('.', ',') } : { id: sid(), text: '', amountTxt: '', currency: trip.budget?.currency || 'EUR', category: 'comida', date: defDate, paidBy: trip.travelers[0] || '' });
+  const [e, setE] = useState(() => exp ? { ...exp, amountTxt: String(exp.amount).replace('.', ',') } : { id: sid(), text: '', amountTxt: '', currency: trip.budget?.currency || 'EUR', category: 'comida', date: defDate, paidBy: trip.travelers[0] || '', split: true });
   const set = p => setE(s => ({ ...s, ...p }));
   const save = () => {
     const amount = parseAmount(e.amountTxt);
@@ -35,6 +35,8 @@ function ExpenseForm({ close, trip, exp }) {
         <${Field} label="Fecha"><input class="input" type="date" value=${e.date} onInput=${ev => set({ date: ev.target.value })} /></${Field}>
         ${trip.travelers.length > 1 && html`<${Field} label="Pagó"><${Select} class="input" value=${e.paidBy} onChange=${ev => set({ paidBy: ev.target.value })}>${trip.travelers.map(p => html`<option value=${p}>${p}</option>`)}</${Select}></${Field}>`}
       </div>
+      ${trip.travelers.length > 1 && html`<div class="field"><${Toggle} checked=${e.split !== false} onChange=${v => set({ split: v })} label="Repartir entre los viajeros" />
+        <small class="muted">${e.split !== false ? 'Entra en las cuentas: se divide a partes iguales.' : 'Gasto personal: no entra en las cuentas entre viajeros.'}</small></div>`}
     </div>
   </${Modal}>`;
 }
@@ -70,7 +72,7 @@ export function ExpensesTab({ trip }) {
   // Cuentas entre viajeros (solo moneda principal y gastos con «pagó»).
   const people = trip.travelers;
   const paid = Object.fromEntries(people.map(p => [p, 0]));
-  for (const e of trip.expenses) if (e.currency === cur && e.paidBy in paid) paid[e.paidBy] += e.amount;
+  for (const e of trip.expenses) if (e.currency === cur && e.paidBy in paid && e.split !== false) paid[e.paidBy] += e.amount;
   const shared = Object.values(paid).reduce((a, b) => a + b, 0);
   const share = people.length ? shared / people.length : 0;
 
@@ -102,7 +104,7 @@ export function ExpensesTab({ trip }) {
           return html`<div class="split-row"><b>${p}</b><span>pagó ${fmtMoney(paid[p], cur)}</span>
             <span class=${diff >= 0 ? 'pos' : 'neg'}>${Math.abs(diff) < 0.01 ? 'en paz' : diff > 0 ? `le deben ${fmtMoney(diff, cur)}` : `debe ${fmtMoney(-diff, cur)}`}</span></div>`;
         })}
-        <p class="muted small">Reparto a partes iguales de los gastos con «Pagó». Las reservas no cuentan aquí.</p>
+        <p class="muted small">Reparto a partes iguales de los gastos marcados para repartir. Los gastos personales y las reservas no cuentan aquí.</p>
       </div>`}
     </div>
     ${!all.length ? html`<${Empty} icon="wallet" title="Sin gastos todavía" text="Apunta lo que vas gastando y compáralo con tu presupuesto. Los precios de las reservas se suman solos." />`
@@ -110,7 +112,7 @@ export function ExpensesTab({ trip }) {
         <h3 class="day-title">${d === 'sin-fecha' ? 'Sin fecha' : fmtDate(d, 'daylong')}<span class="muted small">${fmtMoney(list.filter(x => x.currency === cur).reduce((a, x) => a + x.amount, 0), cur)}</span></h3>
         <ul class="exp-list">${list.map(e => html`<li><button type="button" class="exp-row" onClick=${() => e.res ? openReservation(trip, e.res) : openModal(ExpenseForm, { trip, exp: e })}>
           <span class="exp-ico"><${Icon} name=${e.res ? RES_KINDS[e.res.kind].icon : EXPENSE_CATS[e.category]?.icon || 'wallet'} size=${17} /></span>
-          <span class="exp-text"><b>${e.text}</b><small>${e.res ? 'Reserva' : EXPENSE_CATS[e.category]?.label}${e.paidBy && people.length > 1 ? ` · pagó ${e.paidBy}` : ''}</small></span>
+          <span class="exp-text"><b>${e.text}</b><small>${e.res ? 'Reserva' : EXPENSE_CATS[e.category]?.label}${e.paidBy && people.length > 1 ? ` · pagó ${e.paidBy}${e.split === false ? ' · personal' : ''}` : ''}</small></span>
           <span class="exp-amt">${fmtMoney(e.amount, e.currency)}</span></button></li>`)}</ul>
       </section>`)}
   </div>`;
