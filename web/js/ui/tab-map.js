@@ -93,11 +93,20 @@ function useLeafletMap(ref, { interactive = true } = {}) {
 function drawLayers(map, trip, data, { selected, onSelect, labels }) {
   const L = window.L;
   const group = L.featureGroup();
+  const dayIndex = new Map(eachDay(trip.startDate, trip.endDate).map((d, i) => [d, i + 1]));
   for (const r of data.routes) {
     const line = L.polyline(r.points, { color: r.color || '#4c6f86', weight: 4, opacity: 0.85, dashArray: r.straight ? '1 8' : null, lineCap: 'round' });
     line.bindTooltip(esc(r.name), { sticky: true });
     if (onSelect) line.on('click', () => onSelect({ type: 'route', id: r.id }));
     group.addLayer(line);
+    // Ruta puesta en un día del itinerario: marca en el inicio con su día (D1, D2…).
+    if (labels && r.day && dayIndex.get(r.day)) {
+      const sel = selected?.type === 'route' && selected.id === r.id;
+      const m = L.marker(r.points[0], { icon: markerIcon(L, { color: r.color || '#4c6f86', icon: 'route', selected: sel, label: `D${dayIndex.get(r.day)}` }), riseOnHover: true, zIndexOffset: sel ? 1000 : 0 });
+      m.bindTooltip(esc(`${r.name} · inicio`), { direction: 'top', offset: [0, -14] });
+      if (onSelect) m.on('click', () => onSelect({ type: 'route', id: r.id }));
+      group.addLayer(m);
+    }
   }
   for (const l of data.lines) {
     const line = L.polyline(l.pts, { color: l.color, weight: l.kind === 'flight' ? 2.5 : 3, opacity: 0.8, dashArray: l.dash, lineCap: 'round' });
@@ -111,7 +120,6 @@ function drawLayers(map, trip, data, { selected, onSelect, labels }) {
     if (onSelect) m.on('click', () => onSelect({ type: 'res', id: r.res.id }));
     group.addLayer(m);
   }
-  const dayIndex = new Map(eachDay(trip.startDate, trip.endDate).map((d, i) => [d, i + 1]));
   for (const p of data.places) {
     const c = PLACE_CATS[p.category] || PLACE_CATS.other;
     const sel = selected?.type === 'place' && selected.id === p.id;
@@ -293,7 +301,7 @@ function SelectedCard({ trip, sel, onClose }) {
     const ends = [r.points[0], r.points[r.points.length - 1]].map(([lat, lng]) => ({ lat, lng }));
     return html`<div class="map-card-sel" style=${`--kc:${r.color}`}>
       <div class="sel-head"><span class="sel-ico"><${Icon} name="route" size=${18} /></span>
-        <div><small>Ruta${r.straight ? ' · líneas rectas entre paradas' : ''}</small><h3>${r.name}</h3></div><${IconBtn} icon="x" label="Cerrar" onClick=${onClose} /></div>
+        <div><small>Ruta${r.day && eachDay(trip.startDate, trip.endDate).includes(r.day) ? ` · Día ${eachDay(trip.startDate, trip.endDate).indexOf(r.day) + 1}` : ''}${r.straight ? ' · líneas rectas entre paradas' : ''}</small><h3>${r.name}</h3></div><${IconBtn} icon="x" label="Cerrar" onClick=${onClose} /></div>
       <div class="btn-row">
         <a class="btn btn-sm btn-default" href=${isApple() ? appleDirectionsUrl(r.stops || ends) : googleDirectionsUrl(r.stops || ends)} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Abrir para navegar</span></a>
         <${Btn} size="sm" icon="trash" kind="ghost" onClick=${async () => { if (await confirm('¿Quitar esta ruta?', `«${r.name}» se quitará del mapa.`, { okLabel: 'Quitar', danger: true })) { updateTrip(trip.id, t => { t.routes = t.routes.filter(x => x.id !== r.id); }); onClose(); } }}>Quitar</${Btn}>
