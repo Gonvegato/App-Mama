@@ -14,6 +14,7 @@ export function tripHtml(trip) {
       const ph = r.kind === 'hotel' ? ({ start: 'Entrada · ', end: 'Salida · ', during: 'Noche en ' }[it.phase] || '') : it.phase === 'arrive' ? 'Llegada · ' : '';
       return `<li><span class="t">${e(it.time)}</span><span>${ph}<b>${e(resTitle(r))}</b>${r.code && it.phase !== 'during' ? ` <span class="code">${e(r.code)}</span>` : ''}</span></li>`;
     }
+    if (it.type === 'route') return `<li><span class="t">${e(it.time)}</span><span>Ruta: ${e(it.route.name)}</span></li>`;
     if (it.type === 'place') return `<li><span class="t">${e(it.time)}</span><span>${e(it.place.name)}${it.place.address ? ` <small>${e(it.place.address)}</small>` : ''}</span></li>`;
     return `<li><span class="t">${e(it.time)}</span><span>${e(it.item.text)}</span></li>`;
   };

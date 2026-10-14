@@ -6,11 +6,12 @@ import { updateTrip, uploadFile, removeFiles, toast, useStore } from '../lib/sto
 import { resizeImage } from '../lib/image.js';
 import { openReservation } from './tab-bookings.js';
 import { TripForm } from './trip-form.js';
-import { fmtDate, sid, cx, daysBetween, eachDay } from '../lib/util.js';
+import { fmtDate, sid, cx, daysBetween, eachDay, norm } from '../lib/util.js';
 import { go, tripPath } from '../lib/router.js';
 import { forecast } from '../lib/weather.js';
 import { geocode } from '../lib/geo.js';
 import { PlaceSearch } from './pickers.js';
+import { routeStats, fmtKm } from '../lib/geo-route.js';
 
 const PHASE = { start: '', end: 'Salida', during: 'Noche en', arrive: 'Llegada' };
 
@@ -192,6 +193,18 @@ export function AgendaItem({ item, trip, compact }) {
       </button>
     </li>`;
   }
+  if (item.type === 'route') {
+    const r = item.route;
+    const s = routeStats(r);
+    return html`<li class="ag-item ag-route" style=${`--kc:${r.color || '#4c6f86'}`}>
+      <span class="ag-time">${item.time || ''}</span>
+      <button type="button" class="ag-body" onClick=${() => go(`${tripPath(trip.id, 'rutas')}/${r.id}`)}>
+        <span class="ag-ico"><${Icon} name="route" size=${16} /></span>
+        <span class="ag-text"><small>Ruta</small><b>${r.name}</b>${!compact && html`<small>${[fmtKm(s.lengthKm), s.ele.has ? `↑ ${s.ele.ascent} m` : null, s.difficulty.label].filter(Boolean).join(' · ')}</small>`}</span>
+      </button>
+      ${!compact && html`<${IconBtn} icon="map" label="Ver en el mapa" class="ag-visit" onClick=${() => go(`${tripPath(trip.id, 'mapa')}/t-${r.id}`)} />`}
+    </li>`;
+  }
   if (item.type === 'place') {
     const p = item.place, c = PLACE_CATS[p.category] || PLACE_CATS.other;
     return html`<li class=${cx('ag-item', 'ag-place', p.visited && 'is-done')} style=${`--kc:${c.color}`}>
@@ -222,6 +235,42 @@ export function AgendaItem({ item, trip, compact }) {
   </li>`;
 }
 
+// ¿Hay lugares o rutas guardados en el viaje que se puedan poner en un día?
+const hasSaved = trip => trip.places.length > 0 || trip.routes.some(r => r.points?.length > 1);
+
+// Elegir lugares y rutas ya guardados en el viaje para hacerlos un día concreto.
+// Tocar uno lo pone en este día (o lo quita si ya estaba en él).
+function AddToDay({ close, trip: trip0, day }) {
+  const trip = useStore(s => s.trips.find(t => t.id === trip0.id)) || trip0;
+  const [q, setQ] = useState('');
+  const tripDays = eachDay(trip.startDate, trip.endDate);
+  const dayLabel = d => { const n = tripDays.indexOf(d); return n >= 0 ? `Día ${n + 1}` : fmtDate(d, 'weekday'); };
+  const match = name => !q.trim() || norm(name).includes(norm(q));
+  const routes = trip.routes.filter(r => r.points?.length > 1 && match(r.name));
+  const places = trip.places.filter(p => match(p.name)).sort((a, b) => (a.day === day) - (b.day === day) || (!!a.day) - (!!b.day) || a.name.localeCompare(b.name));
+  const toggle = (key, id, on) => updateTrip(trip.id, t => { const x = t[key].find(x => x.id === id); if (x) x.day = on ? day : ''; });
+  const row = ({ key, id, name, icon, color, sub, cur }) => {
+    const here = cur === day;
+    return html`<li key=${id} class=${cx(here && 'is-on')}>
+      <button type="button" onClick=${() => toggle(key, id, !here)} aria-pressed=${here}>
+        <span class="pl-dot" style=${`--kc:${color}`}><${Icon} name=${icon} size=${14} /></span>
+        <span class="pl-text"><b>${name}</b><small>${[sub, cur && !here ? `Ahora en el ${dayLabel(cur)}` : ''].filter(Boolean).join(' · ')}</small></span>
+        <span class=${cx('atd-state', here && 'is-on')}>${here ? html`<${Icon} name="check" size=${15} /> En este día` : cur ? 'Mover aquí' : 'Añadir'}</span>
+      </button></li>`;
+  };
+  return html`<${Modal} title=${`Lugar o ruta · ${fmtDate(day, 'weekday')}`} close=${close} size="md" class="add-to-day"
+    footer=${html`<${Btn} onClick=${() => { close(); openPlan(trip, day); }} icon="plus">Sitio nuevo (plan con lugar)</${Btn}><${Btn} kind="primary" onClick=${close}>Hecho</${Btn}>`}>
+    <p class="muted small">Toca un lugar o una ruta del viaje para hacerlo este día. Si ya está en este día, tócalo otra vez para quitarlo (no se borra del viaje).</p>
+    ${trip.places.length + trip.routes.length > 6 && html`<input class="input" type="search" placeholder="Buscar por nombre" value=${q} onInput=${e => setQ(e.target.value)} />`}
+    ${routes.length > 0 && html`<h4 class="atd-title">Rutas</h4>
+      <ul class="place-list atd-list">${routes.map(r => { const s = routeStats(r); return row({ key: 'routes', id: r.id, name: r.name, icon: 'route', color: r.color || '#4c6f86', sub: [fmtKm(s.lengthKm), s.difficulty.label].join(' · '), cur: r.day }); })}</ul>`}
+    ${places.length > 0 && html`<h4 class="atd-title">Lugares</h4>
+      <ul class="place-list atd-list">${places.map(p => { const c = PLACE_CATS[p.category] || PLACE_CATS.other; return row({ key: 'places', id: p.id, name: p.name, icon: c.icon, color: c.color, sub: c.label, cur: p.day }); })}</ul>`}
+    ${!routes.length && !places.length && html`<p class="muted">No hay nada con ese nombre.</p>`}
+  </${Modal}>`;
+}
+export const openAddToDay = (trip, day) => openModal(AddToDay, { trip, day });
+
 // Panel con el detalle de un día: su agenda y los planes, con botón para añadir.
 function DayDetail({ close, trip: trip0, day, index, weather }) {
   const trip = useStore(s => s.trips.find(t => t.id === trip0.id)) || trip0;
@@ -229,7 +278,7 @@ function DayDetail({ close, trip: trip0, day, index, weather }) {
   const d = days.find(x => x.day === day) || outside.find(x => x.day === day) || { day, items: [] };
   const w = weather?.find(x => x.day === day);
   return html`<${Modal} title=${fmtDate(day, 'daylong')} close=${close} size="lg" class="day-detail"
-    footer=${html`<${Btn} kind="ghost" onClick=${close}>Cerrar</${Btn}><${Btn} kind="primary" icon="plus" onClick=${() => openPlan(trip, day)}>Añadir un plan</${Btn}>`}>
+    footer=${html`<${Btn} kind="ghost" onClick=${close}>Cerrar</${Btn}>${hasSaved(trip) && html`<${Btn} icon="pin" onClick=${() => openAddToDay(trip, day)}>Lugar o ruta</${Btn}>`}<${Btn} kind="primary" icon="plus" onClick=${() => openPlan(trip, day)}>Añadir un plan</${Btn}>`}>
     <div class="day-detail-head">
       ${index != null && index >= 0 && html`<span class="day-n">Día ${index + 1}</span>`}
       ${w && html`<span class="weather-chip" title=${w.label}><${Icon} name=${w.icon} size=${17} /><b>${w.max}°</b><small>${w.min}°</small>${w.rain != null && w.rain >= 30 ? html`<small>· ${w.rain}%</small>` : ''}</span>`}
@@ -255,7 +304,8 @@ function Day({ trip, d, index, weather }) {
     </button>
     <ul class="agenda">
       ${d.items.map(it => html`<${AgendaItem} item=${{ ...it, day: d.day }} trip=${trip} />`)}
-      <li class="ag-add"><button type="button" class="link-btn" onClick=${() => openPlan(trip, d.day)}><${Icon} name="plus" size=${15} /> Añadir un plan</button></li>
+      <li class="ag-add"><button type="button" class="link-btn" onClick=${() => openPlan(trip, d.day)}><${Icon} name="plus" size=${15} /> Añadir un plan</button>
+        ${hasSaved(trip) && html`<button type="button" class="link-btn" onClick=${() => openAddToDay(trip, d.day)}><${Icon} name="pin" size=${15} /> Añadir lugar o ruta</button>`}</li>
     </ul>
   </section>`;
 }

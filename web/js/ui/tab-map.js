@@ -49,7 +49,8 @@ function collect(trip, { hidden = new Set(), day }) {
       res.push({ id: `r-${r.id}`, res: r, at: r.location, icon: k.icon, color: k.color });
     }
   }
-  const routes = day || hidden.has('routes') ? [] : trip.routes.filter(r => r.points?.length > 1);
+  // Con un día elegido, solo las rutas puestas para ese día en el itinerario.
+  const routes = hidden.has('routes') ? [] : trip.routes.filter(r => r.points?.length > 1 && (!day || r.day === day));
   return { places, plans, res, lines, routes };
 }
 
@@ -342,6 +343,9 @@ export function MapTab({ trip, route }) {
     if (type === 'p') {
       const p = trip.places.find(x => x.id === id);
       if (p?.lat != null) { setSel({ type: 'place', id }); setTimeout(() => focusOn(map, [p.lat, p.lng], 16), 50); fitted.current = true; }
+    } else if (type === 't') {
+      const r = trip.routes.find(x => x.id === id);
+      if (r?.points?.length > 1) { setSel({ type: 'route', id }); setTimeout(() => map.fitBounds(r.points, { paddingTopLeft: [panelOffset(map) + 40, 60], paddingBottomRight: [40, 40] }), 50); fitted.current = true; }
     } else if (type === 'n') {
       const it = locatedPlans(trip).find(x => x.id === id);
       if (it) { setSel({ type: 'plan', id }); setTimeout(() => focusOn(map, [it.where.lat, it.where.lng], 16), 50); fitted.current = true; }
@@ -512,9 +516,9 @@ export function MapTab({ trip, route }) {
             <span class="pl-dot" style=${`--kc:${PLAN_MARK.color}`}><${Icon} name=${PLAN_MARK.icon} size=${14} /></span>
             <span class="pl-text"><b>${it.text}</b><small>${[days.includes(it.day) ? `Día ${days.indexOf(it.day) + 1}` : fmtDate(it.day, 'weekday'), it.time, it.where.name !== it.text ? it.where.name : '', it.where.address].filter(Boolean).join(' · ')}</small></span>
           </button></li>`)}
-        ${trip.routes.length > 0 && !day && html`<li class="pl-sep">Rutas</li>`}
-        ${!day && trip.routes.map(r => html`<li class=${cx(sel?.type === 'route' && sel.id === r.id && 'is-sel')}><button type="button" onClick=${() => { setSel({ type: 'route', id: r.id }); if (mobile) setPanel(false); map.fitBounds(r.points, { paddingTopLeft: [mobile ? 40 : panelOffset(map) + 40, 60], paddingBottomRight: [40, 40] }); }}>
-          <span class="pl-dot" style=${`--kc:${r.color}`}><${Icon} name="route" size=${14} /></span><span class="pl-text"><b>${r.name}</b><small>${r.points.length} puntos</small></span></button></li>`)}
+        ${data.routes.length > 0 && html`<li class="pl-sep">Rutas</li>`}
+        ${data.routes.map(r => html`<li class=${cx(sel?.type === 'route' && sel.id === r.id && 'is-sel')}><button type="button" onClick=${() => { setSel({ type: 'route', id: r.id }); if (mobile) setPanel(false); map.fitBounds(r.points, { paddingTopLeft: [mobile ? 40 : panelOffset(map) + 40, 60], paddingBottomRight: [40, 40] }); }}>
+          <span class="pl-dot" style=${`--kc:${r.color}`}><${Icon} name="route" size=${14} /></span><span class="pl-text"><b>${r.name}</b><small>${[r.day && days.includes(r.day) ? `Día ${days.indexOf(r.day) + 1}` : '', `${r.points.length} puntos`].filter(Boolean).join(' · ')}</small></span></button></li>`)}
       </ul>`}
       <p class="map-legend small muted"><span class="lg lg-round"></span> lugares y planes <span class="lg lg-square"></span> reservas <span class="lg lg-dash"></span> trayectos</p>
     </aside>`}

@@ -2,7 +2,7 @@
 // Pensado también sin conexión: los puntos de la ruta están guardados y el mapa usa los
 // trozos ya visitados. La nube y el móvil siguen funcionando igual.
 import { html, useState, useEffect, useRef } from '../../vendor/preact-htm.js';
-import { Btn, Icon, IconBtn, Empty, Field, Modal, openModal, confirm } from './kit.js';
+import { Btn, Icon, IconBtn, Empty, Field, Modal, openModal, confirm, Select } from './kit.js';
 import { ImportModal } from './map-import.js';
 import { loadLeaflet, baseLayer, currentMapStyle } from '../lib/leaflet-loader.js';
 import { PLACE_CATS, RES_KINDS } from '../lib/model.js';
@@ -10,7 +10,7 @@ import { ICONS } from '../lib/icon-data.js';
 import { updateTrip, getTrip } from '../lib/store.js';
 import { routeLengthKm, nearestOnRoute, fmtKm, routeStats } from '../lib/geo-route.js';
 import { appleDirectionsUrl, googleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
-import { cx } from '../lib/util.js';
+import { cx, eachDay, fmtDate } from '../lib/util.js';
 
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -222,6 +222,8 @@ function RouteCard({ trip, r, onFollow }) {
   };
   const s = routeStats(r);
   const sub = [fmtKm(s.lengthKm), s.ele.has ? `↑ ${s.ele.ascent} m` : null, s.difficulty.label].filter(Boolean).join(' · ');
+  const days = eachDay(trip.startDate, trip.endDate);
+  const setDay = v => updateTrip(trip.id, t => { const x = t.routes.find(x => x.id === r.id); if (x) x.day = v; });
   return html`<article class="route-card" style=${`--kc:${r.color || '#4c6f86'}`}>
     <div class="route-head">
       <span class="route-ico"><${Icon} name="route" size=${18} /></span>
@@ -229,6 +231,10 @@ function RouteCard({ trip, r, onFollow }) {
         <h3>${r.name}</h3>
         <small>${sub}${r.straight ? ' · líneas rectas entre paradas' : ''}</small>
       </div>
+      ${days.length > 0 && html`<${Select} class="input input-sm route-day" value=${r.day || ''} onChange=${e => setDay(e.target.value)} aria-label="Día del itinerario">
+        <option value="">Sin día</option>
+        ${r.day && !days.includes(r.day) && html`<option value=${r.day}>${fmtDate(r.day, 'weekday')}</option>`}
+        ${days.map((d, i) => html`<option value=${d}>Día ${i + 1} · ${fmtDate(d, 'weekday')}</option>`)}</${Select}>`}
     </div>
     <div class="btn-row">
       <${Btn} kind="primary" size="sm" icon="navigation" onClick=${() => onFollow(r)}>Empezar</${Btn}>
@@ -240,9 +246,14 @@ function RouteCard({ trip, r, onFollow }) {
   </article>`;
 }
 
-export function RoutesTab({ trip }) {
+export function RoutesTab({ trip, route }) {
   const [following, setFollowing] = useState(null); // ruta que se está siguiendo
   const routes = trip.routes.filter(r => r.points?.length > 1);
+  // Desde el itinerario (#/viaje/id/rutas/<ruta>) se abren los detalles de esa ruta.
+  useEffect(() => {
+    const r = route?.sub && routes.find(x => x.id === route.sub);
+    if (r) openModal(RouteInfo, { trip, r, onFollow: setFollowing });
+  }, [route?.sub]);
 
   const importNow = () => openModal(ImportModal, { trip });
 

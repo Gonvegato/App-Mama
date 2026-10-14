@@ -172,6 +172,7 @@ export function buildAgenda(trip) {
     }
   }
   for (const p of trip.places) if (p.day) push(p.day, { type: 'place', place: p, time: p.time || '' });
+  for (const r of trip.routes) if (r.day && r.points?.length > 1) push(r.day, { type: 'route', route: r, time: r.time || '' });
   for (const [day, items] of Object.entries(trip.plan || {}))
     for (const it of items) push(day, { type: 'plan', item: it, time: it.time || '' });
   const sortItems = arr => arr.sort((a, b) => {

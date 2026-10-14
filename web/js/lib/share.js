@@ -77,7 +77,7 @@ export function tripSummaryText(trip) {
   if (planned.length) {
     out.push('', 'Plan:');
     for (const d of planned) {
-      const names = d.items.filter(i => i.type !== 'res').map(i => (i.type === 'place' ? i.place.name : i.item.text));
+      const names = d.items.filter(i => i.type !== 'res').map(i => (i.type === 'place' ? i.place.name : i.type === 'route' ? `ruta «${i.route.name}»` : i.item.text));
       out.push(`• Día ${eachDay(trip.startDate, trip.endDate).indexOf(d.day) + 1}: ${names.join(', ')}`);
     }
   }
