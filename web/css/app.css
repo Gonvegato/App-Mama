@@ -166,6 +166,8 @@ textarea.input { resize: vertical; line-height: 1.5; min-height: 4.5rem; }
 .input-lg { font-size: 1.12rem; min-height: 3rem; }
 .input-sm { min-height: 2.2rem; padding: .3rem .65rem; font-size: .92rem; width: auto; }
 .input-time { width: 7.2rem; flex: none; }
+.plan-when { display: flex; flex-wrap: wrap; gap: .9rem; align-items: flex-end; }
+.plan-when > .field:first-child:not(:last-child) { flex: 1 1 12rem; }
 .input-code { font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; }
 .input-inline { border-color: transparent; background: transparent; min-height: 2.2rem; padding: .3rem .4rem; }
 .input-inline:focus { background: var(--surface); }

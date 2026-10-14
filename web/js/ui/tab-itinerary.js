@@ -6,7 +6,7 @@ import { updateTrip, uploadFile, removeFiles, toast, useStore } from '../lib/sto
 import { resizeImage } from '../lib/image.js';
 import { openReservation } from './tab-bookings.js';
 import { TripForm } from './trip-form.js';
-import { fmtDate, sid, cx, daysBetween } from '../lib/util.js';
+import { fmtDate, sid, cx, daysBetween, eachDay } from '../lib/util.js';
 import { go, tripPath } from '../lib/router.js';
 import { forecast } from '../lib/weather.js';
 import { geocode } from '../lib/geo.js';
@@ -35,10 +35,14 @@ function PhotoThumb({ path, name, onRemove }) {
   </div>`;
 }
 
-// Editor de un plan: hora, título, nota larga y fotos. Con dictado por voz.
+// Editor de un plan: día, hora, título, lugar, nota larga y fotos. Con dictado por voz.
 function PlanModal({ close, trip, day, it }) {
   const editing = !!it;
   const base = planItem(it || newPlanItem());
+  // Días a los que se puede mover el plan (los del viaje y, si estaba fuera de ellos, el suyo).
+  const tripDays = eachDay(trip.startDate, trip.endDate);
+  const dayOptions = tripDays.includes(day) ? tripDays : [day, ...tripDays].sort();
+  const [newDay, setNewDay] = useState(day);
   const [time, setTime] = useState(base.time);
   const [text, setText] = useState(base.text);
   const [note, setNote] = useState(base.note);
@@ -100,14 +104,19 @@ function PlanModal({ close, trip, day, it }) {
     const removedIds = base.photoIds.filter(id => !keep.some(k => k.id === id));
     const removedDocs = removedIds.map(id => trip.docs.find(d => d.id === id)).filter(Boolean);
     updateTrip(trip.id, t => {
-      const list = t.plan[day] || (t.plan[day] = []);
+      // Si se cambia de día, se quita del día anterior y se pone en el nuevo.
+      if (newDay !== day && t.plan[day]) {
+        t.plan[day] = t.plan[day].filter(x => x.id !== item.id);
+        if (!t.plan[day].length) delete t.plan[day];
+      }
+      const list = t.plan[newDay] || (t.plan[newDay] = []);
       const i = list.findIndex(x => x.id === item.id);
       if (i >= 0) list[i] = item; else list.push(item);
       for (const d of fresh) t.docs.push({ ...d, fromPlan: item.id });
       t.docs = t.docs.filter(d => !removedIds.includes(d.id));
     });
     if (removedDocs.length) removeFiles(removedDocs.map(d => d.path));
-    toast(editing ? 'Plan guardado' : 'Plan añadido', 'ok');
+    toast(newDay !== day ? `Plan movido al ${fmtDate(newDay, 'weekday')}` : editing ? 'Plan guardado' : 'Plan añadido', 'ok');
     close();
   };
 
@@ -120,7 +129,11 @@ function PlanModal({ close, trip, day, it }) {
       <${Btn} kind="ghost" onClick=${cancel}>Cancelar</${Btn}>
       <${Btn} kind="primary" type="submit" disabled=${saving}>${saving ? 'Buscando el lugar…' : editing ? 'Guardar' : 'Añadir'}</${Btn}>`}>
     <div class="form-grid">
-      <${Field} label="Hora (opcional)" wide=${false}><input class="input input-time" type="time" value=${time} onInput=${e => setTime(e.target.value)} aria-label="Hora" /></${Field}>
+      <div class="plan-when">
+        ${dayOptions.length > 1 && html`<${Field} label="Día" wide=${false}><${Select} class="input" value=${newDay} onChange=${e => setNewDay(e.target.value)} aria-label="Día">
+          ${dayOptions.map(d => { const n = tripDays.indexOf(d); return html`<option value=${d}>${n >= 0 ? `Día ${n + 1} · ` : ''}${fmtDate(d, 'weekday')}</option>`; })}</${Select}></${Field}>`}
+        <${Field} label="Hora (opcional)" wide=${false}><input class="input input-time" type="time" value=${time} onInput=${e => setTime(e.target.value)} aria-label="Hora" /></${Field}>
+      </div>
       <${Field} label="Título" wide><div class="mic-row">
         <input class="input" value=${text} autofocus placeholder="Ej.: Paseo por el casco antiguo" onInput=${e => setText(e.target.value)} />
         <${MicButton} title="Dictar el título" onText=${t => setText(v => (v ? v + ' ' : '') + t)} />
