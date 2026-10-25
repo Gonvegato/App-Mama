@@ -2,7 +2,7 @@
 const VERSION = 'cv-1.1.1';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'mapa-v2';
-const MAX_TILES = 2500;
+const MAX_TILES = 8000;   // da para varios viajes descargados (hasta 3.000 teselas cada uno)
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
@@ -45,8 +45,9 @@ self.addEventListener('fetch', e => {
   if (url.hostname === 'tiles.openfreemap.org') {
     e.respondWith((async () => {
       const c = await caches.open(TILES);
-      // El estilo puede cambiar: primero la red y, sin conexión, la copia.
-      if (url.pathname.startsWith('/styles/')) {
+      // El estilo y la lista de teselas (/planet, que cambia de versión cada poco) pueden cambiar:
+      // primero la red y, sin conexión, la copia.
+      if (url.pathname.startsWith('/styles/') || url.pathname === '/planet') {
         try { const res = await fetch(req); if (res.ok) c.put(req, res.clone()); return res; }
         catch { return (await c.match(req)) || Response.error(); }
       }

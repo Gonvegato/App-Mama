@@ -9,9 +9,12 @@ import { TripForm } from './trip-form.js';
 import { fmtDate, sid, cx, daysBetween, eachDay, norm } from '../lib/util.js';
 import { go, tripPath } from '../lib/router.js';
 import { forecast } from '../lib/weather.js';
-import { geocode } from '../lib/geo.js';
+import { geocode, navigateUrl } from '../lib/geo.js';
 import { PlaceSearch } from './pickers.js';
 import { routeStats, fmtKm } from '../lib/geo-route.js';
+
+// Botón «Navegar hasta aquí» (abre Google Maps desde donde estés).
+const NavBtn = ({ at, label = 'Navegar hasta aquí' }) => html`<${IconBtn} icon="navigation" label=${label} class="ag-visit" onClick=${() => window.open(navigateUrl(at), '_blank', 'noopener')} />`;
 
 const PHASE = { start: '', end: 'Salida', during: 'Noche en', arrive: 'Llegada' };
 
@@ -202,7 +205,8 @@ export function AgendaItem({ item, trip, compact }) {
         <span class="ag-ico"><${Icon} name="route" size=${16} /></span>
         <span class="ag-text"><small>Ruta</small><b>${r.name}</b>${!compact && html`<small>${[fmtKm(s.lengthKm), s.ele.has ? `↑ ${s.ele.ascent} m` : null, s.difficulty.label].filter(Boolean).join(' · ')}</small>`}</span>
       </button>
-      ${!compact && html`<${IconBtn} icon="map" label="Ver en el mapa" class="ag-visit" onClick=${() => go(`${tripPath(trip.id, 'mapa')}/t-${r.id}`)} />`}
+      ${!compact && html`<span class="ag-actions"><${NavBtn} at=${{ lat: r.points[0][0], lng: r.points[0][1], name: r.name }} label="Ir al inicio de la ruta" />
+        <${IconBtn} icon="map" label="Ver en el mapa" class="ag-visit" onClick=${() => go(`${tripPath(trip.id, 'mapa')}/t-${r.id}`)} /></span>`}
     </li>`;
   }
   if (item.type === 'place') {
@@ -213,8 +217,8 @@ export function AgendaItem({ item, trip, compact }) {
         <span class="ag-ico"><${Icon} name=${c.icon} size=${16} /></span>
         <span class="ag-text"><b>${p.name}</b>${!compact && p.notes && html`<small>${p.notes.split('\n')[0]}</small>`}</span>
       </button>
-      ${!compact && html`<${IconBtn} icon=${p.visited ? 'check-circle' : 'circle'} label=${p.visited ? 'Visitado' : 'Marcar como visitado'} class=${cx('ag-visit', p.visited && 'is-on')}
-        onClick=${() => updateTrip(trip.id, t => { const x = t.places.find(x => x.id === p.id); if (x) x.visited = !x.visited; })} />`}
+      ${!compact && html`<span class="ag-actions">${p.lat != null && html`<${NavBtn} at=${p} />`}<${IconBtn} icon=${p.visited ? 'check-circle' : 'circle'} label=${p.visited ? 'Visitado' : 'Marcar como visitado'} class=${cx('ag-visit', p.visited && 'is-on')}
+        onClick=${() => updateTrip(trip.id, t => { const x = t.places.find(x => x.id === p.id); if (x) x.visited = !x.visited; })} /></span>`}
     </li>`;
   }
   const it = planItem(item.item);
@@ -230,8 +234,8 @@ export function AgendaItem({ item, trip, compact }) {
         ${nPhotos > 0 && html`<small class="ag-photos"><${Icon} name="image" size=${13} /> ${nPhotos} foto${nPhotos > 1 ? 's' : ''}</small>`}
       </span>
     </button>
-    ${!compact && it.where?.lat != null && html`<${IconBtn} icon="map" label="Ver en el mapa" class="ag-visit"
-      onClick=${() => go(`${tripPath(trip.id, 'mapa')}/n-${it.id}`)} />`}
+    ${!compact && it.where?.lat != null && html`<span class="ag-actions"><${NavBtn} at=${it.where} />
+      <${IconBtn} icon="map" label="Ver en el mapa" class="ag-visit" onClick=${() => go(`${tripPath(trip.id, 'mapa')}/n-${it.id}`)} /></span>`}
   </li>`;
 }
 

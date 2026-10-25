@@ -10,7 +10,7 @@ import { parseReservationDoc } from '../lib/doc-parse.js';
 import { geocode } from '../lib/geo.js';
 import { sid, fmtSize, base64ToBlob, cx } from '../lib/util.js';
 import { go } from '../lib/router.js';
-import { mailScanState, mailCandidates, dismissCandidates } from '../lib/mail-scan.js';
+import { mailScanState, mailCandidates, dismissCandidates, learnSender } from '../lib/mail-scan.js';
 
 const fmtWhen = iso => {
   const d = new Date(iso);
@@ -160,7 +160,7 @@ function Results({ trip, results, onSaved }) {
     let n = 0;
     for (const id of list) {
       setSaving(id);
-      try { await saveEmail(trip, id, { withAttachments: withAtt }); n++; }
+      try { await saveEmail(trip, id, { withAttachments: withAtt }); n++; learnSender(results.find(r => r.id === id)?.from); }
       catch (e) { toast(`No se pudo guardar un correo: ${e.message}`, 'error'); }
     }
     setSaving(null); setSel(new Set());
@@ -184,7 +184,7 @@ function Results({ trip, results, onSaved }) {
         return html`<li class=${cx('mail-row', isSaved && 'is-saved', sel.has(r.id) && 'is-selected')}>
           <label class="mail-check">${isSaved ? html`<${Icon} name="check-circle" size=${20} title="Ya está en el viaje" />` : html`<input type="checkbox" checked=${sel.has(r.id)} onChange=${() => toggle(r.id)} aria-label="Seleccionar" />`}</label>
           <button type="button" class="mail-open" onClick=${() => preview(r)}>
-            <span class="mail-top"><b>${sender(r.from)}</b><span class="muted small">${fmtWhen(r.date)}</span></span>
+            <span class="mail-top"><span class="mail-who"><b>${sender(r.from)}</b>${r.level && html`<span class=${cx('mail-tag', `is-${r.level}`)} title=${(r.why || []).join('\n')}>${r.level === 'probable' ? 'Probable' : 'Quizá'}</span>`}</span><span class="muted small">${fmtWhen(r.date)}</span></span>
             <span class="mail-subject">${r.subject}${r.count > 1 ? html` <small class="muted">(${r.count})</small>` : ''}</span>
             <span class="mail-snippet">${r.snippet}</span>
             ${r.attachments?.length > 0 && html`<span class="mail-attcount"><${Icon} name="paperclip" size=${13} /> ${r.attachments.map(a => a.name).join(', ')}</span>`}

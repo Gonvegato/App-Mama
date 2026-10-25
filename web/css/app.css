@@ -562,6 +562,7 @@ input[type='range'] { accent-color: var(--accent); width: 100%; }
 .ag-code { font-family: var(--mono); letter-spacing: .04em; }
 .ag-faint { opacity: .6; }
 .ag-item.is-done .ag-text b { text-decoration: line-through; text-decoration-color: var(--ink-3); color: var(--ink-2); }
+.ag-actions { display: inline-flex; align-items: center; }
 .ag-visit { color: var(--ink-3); }
 .ag-visit.is-on { color: var(--ok); }
 .ag-add { padding: .3rem 0 .5rem 3.5rem; display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; }
@@ -960,6 +961,11 @@ html.has-modal .main { overflow: hidden; }
 .follow-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .follow-msg { position: absolute; top: 3.8rem; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: .5rem; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 12px; padding: .6rem .9rem; max-width: min(92%, 32rem); color: var(--ink-2); font-size: .95rem; }
 .follow-recenter { position: absolute; right: .8rem; bottom: 8.2rem; z-index: 10; display: inline-flex; align-items: center; gap: .4rem; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 999px; padding: .55rem .9rem; font: inherit; font-weight: 560; color: var(--ink); cursor: pointer; }
+.follow-shot { position: absolute; right: .8rem; bottom: 12.2rem; z-index: 10; display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+.follow-cam { position: relative; width: 3.6rem; height: 3.6rem; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow); cursor: pointer; }
+.follow-cam:disabled { opacity: .7; }
+.follow-gal { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 50%; }
+.follow-badge { position: absolute; top: -.2rem; right: -.2rem; min-width: 1.35rem; height: 1.35rem; padding: 0 .3rem; border-radius: 999px; background: var(--ink); color: var(--surface); font-size: .78rem; font-weight: 640; display: grid; place-items: center; }
 .follow-stats { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--surface); border-top: 1px solid var(--line); padding: .7rem .9rem calc(.7rem + env(safe-area-inset-bottom)); box-shadow: 0 -6px 18px -12px rgba(0,0,0,.4); }
 .fs-bar { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink-3) 25%, transparent); overflow: hidden; margin-bottom: .7rem; }
 .fs-fill { display: block; height: 100%; background: var(--c); border-radius: 3px; transition: width .5s var(--ease); }
@@ -1080,3 +1086,24 @@ code.break { word-break: break-all; display: inline-block; background: var(--sur
 .atd-list li.is-on > button { background: var(--accent-soft); }
 .atd-state { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: .25rem; font-size: .85rem; color: var(--accent); white-space: nowrap; }
 .atd-state.is-on { color: var(--ok); }
+
+/* Viaje sin conexión */
+.offline-card .notice { margin: .8rem 0 0; }
+.offline-facts { list-style: none; margin: .7rem 0 .2rem; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.offline-facts li { display: flex; align-items: flex-start; gap: .55rem; color: var(--ink-2); }
+.offline-facts .icon { margin-top: .15rem; color: var(--ink-3); flex: none; }
+.offline-card .btn-row { margin-top: .9rem; }
+.offline-prog { margin-top: .9rem; }
+.offline-prog-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.offline-prog-row .small { display: inline-flex; align-items: center; gap: .4rem; }
+.offline-list { list-style: none; margin: .6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+.offline-list li { display: flex; align-items: center; gap: .7rem; padding: .5rem .2rem; border-bottom: 1px solid var(--line); }
+.offline-list .ol-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.offline-list .ol-text b { font-weight: 560; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.offline-list .ol-text small { color: var(--ink-3); }
+
+/* Etiqueta de «Probable» / «Quizá» en los correos encontrados solos */
+.mail-tag { margin-left: .5rem; padding: .08rem .5rem; border-radius: 999px; font-size: .74rem; font-weight: 600; letter-spacing: .02em; background: var(--surface-2); color: var(--ink-2); flex: none; }
+.mail-tag.is-probable { background: color-mix(in srgb, var(--ok) 16%, var(--surface)); color: var(--ok); }
+.mail-top { align-items: center; }
+.mail-who { display: flex; align-items: center; min-width: 0; }

@@ -13,6 +13,7 @@ import { TripPage } from './ui/trip.js';
 import { Settings } from './ui/settings.js';
 import { Setup, Login, Splash, BootError } from './ui/auth.js';
 import { cx } from './lib/util.js';
+import { startPhotoSync } from './lib/photo-queue.js';
 
 function Shell() {
   const route = useRoute();
@@ -45,6 +46,7 @@ applyTheme(state.prefs);
 watchSystemTheme(() => state.prefs);
 render(html`<${App} />`, document.getElementById('app'));
 boot().then(async () => {
+  startPhotoSync();
   // Al volver de pCloud, se guarda el permiso en los ajustes.
   try { if (await pcloudCaptureRedirect()) toast('pCloud conectado. Ya puedes subir fotos.', 'ok'); } catch { /* nada */ }
   return initUsb();

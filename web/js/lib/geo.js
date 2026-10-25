@@ -182,6 +182,16 @@ export function appleMapsUrl(p) {
   }
   return `https://maps.apple.com/search?query=${encodeURIComponent([p.name, p.address].filter(Boolean).join(', '))}`;
 }
+// «Llévame hasta aquí»: sin origen, Google Maps sale desde donde está el móvil y con
+// dir_action=navigate empieza la navegación (si no está disponible, Google lo ignora).
+// travelmode: driving | walking | bicycling | transit
+export function googleNavigateUrl(p, mode = 'driving') {
+  const dest = p.lat != null && p.lng != null ? `${p.lat},${p.lng}` : [p.name, p.address].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=${mode}&dir_action=navigate`;
+}
+// En Apple Maps se mantiene la ficha del lugar (desde ahí se pide la ruta).
+export const navigateUrl = (p, mode) => (isApple() ? appleMapsUrl(p) : googleNavigateUrl(p, mode));
+
 export function googleDirectionsUrl(points) {
   const pts = points.filter(p => p.lat != null);
   if (pts.length < 2) return pts[0] ? googleMapsUrl(pts[0]) : '';

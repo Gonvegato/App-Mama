@@ -9,7 +9,8 @@ import { loadLeaflet, baseLayer, currentMapStyle, MAP_STYLES } from '../lib/leaf
 import { PLACE_CATS, RES_KINDS, newPlace, resTitle, isTransport, locatedPlans } from '../lib/model.js';
 import { updateTrip, toast, useStore, setPrefs, getTrip } from '../lib/store.js';
 import { isRouteInstruction } from '../lib/importers.js';
-import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, googleDirectionsUrl, appleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
+import { exportTripKml } from '../lib/export.js';
+import { geocode, reverseGeocode, guessCategory, greatCircle, googleMapsUrl, appleMapsUrl, navigateUrl, googleDirectionsUrl, appleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
 import { eachDay, fmtDate, cx } from '../lib/util.js';
 
 // Planes del itinerario con lugar: se dibujan con su propio color e icono.
@@ -255,10 +256,11 @@ function SelectedCard({ trip, sel, onClose }) {
       ${p.notes && html`<p class="sel-notes">${p.notes}</p>`}
       ${p.url && html`<p class="small"><a href=${p.url} target="_blank" rel="noopener">${p.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48)}</a></p>`}
       <div class="btn-row">
-        <a class="btn btn-primary btn-sm" href=${isApple() ? appleMapsUrl(p) : googleMapsUrl(p)} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Cómo llegar</span></a>
+        <a class="btn btn-primary btn-sm" href=${navigateUrl(p)} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Navegar hasta aquí</span></a>
         <${Btn} size="sm" icon="edit" onClick=${() => openModal(PlaceForm, { trip, place: p })}>Editar</${Btn}>
         <${Btn} size="sm" icon=${p.visited ? 'check-circle' : 'circle'} onClick=${() => updateTrip(trip.id, t => { const x = t.places.find(x => x.id === p.id); if (x) x.visited = !x.visited; })}>${p.visited ? 'Visitado' : 'Marcar visitado'}</${Btn}>
         <${Menu} items=${[
+          { icon: 'navigation', label: 'Ir a pie', onClick: () => window.open(navigateUrl(p, 'walking'), '_blank', 'noopener') },
           { icon: 'external', label: 'Abrir en Google Maps', onClick: () => window.open(googleMapsUrl(p), '_blank', 'noopener') },
           { icon: 'external', label: 'Abrir en Apple Maps', onClick: () => window.open(appleMapsUrl(p), '_blank', 'noopener') },
           '-',
@@ -280,7 +282,7 @@ function SelectedCard({ trip, sel, onClose }) {
       <p class="muted small"><${Icon} name="pin" size=${14} /> ${[w.name !== it.text && w.name, w.address].filter(Boolean).join(' · ') || w.name}</p>
       ${it.note && html`<p class="sel-notes">${it.note}</p>`}
       <div class="btn-row">
-        <a class="btn btn-primary btn-sm" href=${isApple() ? appleMapsUrl(w) : googleMapsUrl(w)} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Cómo llegar</span></a>
+        <a class="btn btn-primary btn-sm" href=${navigateUrl(w)} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Navegar hasta aquí</span></a>
         <${Btn} size="sm" icon="edit" onClick=${() => openPlan(trip, it.day, trip.plan[it.day]?.find(x => x.id === it.id))}>Ver o editar plan</${Btn}>
       </div>
     </div>`;
@@ -303,7 +305,8 @@ function SelectedCard({ trip, sel, onClose }) {
       <div class="sel-head"><span class="sel-ico"><${Icon} name="route" size=${18} /></span>
         <div><small>Ruta${r.day && eachDay(trip.startDate, trip.endDate).includes(r.day) ? ` · Día ${eachDay(trip.startDate, trip.endDate).indexOf(r.day) + 1}` : ''}${r.straight ? ' · líneas rectas entre paradas' : ''}</small><h3>${r.name}</h3></div><${IconBtn} icon="x" label="Cerrar" onClick=${onClose} /></div>
       <div class="btn-row">
-        <a class="btn btn-sm btn-default" href=${isApple() ? appleDirectionsUrl(r.stops || ends) : googleDirectionsUrl(r.stops || ends)} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Abrir para navegar</span></a>
+        <a class="btn btn-sm btn-primary" href=${navigateUrl(ends[0])} target="_blank" rel="noopener"><${Icon} name="navigation" size=${16} /><span>Ir al inicio de la ruta</span></a>
+        <a class="btn btn-sm btn-default" href=${isApple() ? appleDirectionsUrl(r.stops || ends) : googleDirectionsUrl(r.stops || ends)} target="_blank" rel="noopener"><${Icon} name="route" size=${16} /><span>Ver la ruta en Maps</span></a>
         <${Btn} size="sm" icon="trash" kind="ghost" onClick=${async () => { if (await confirm('¿Quitar esta ruta?', `«${r.name}» se quitará del mapa.`, { okLabel: 'Quitar', danger: true })) { updateTrip(trip.id, t => { t.routes = t.routes.filter(x => x.id !== r.id); }); onClose(); } }}>Quitar</${Btn}>
       </div>
     </div>`;
@@ -453,6 +456,7 @@ export function MapTab({ trip, route }) {
         { icon: 'maximize', label: 'Centrar en el destino', onClick: () => fitPoints(map, focusPoints(trip, data), trip, { animate: true }) },
         { icon: 'globe', label: 'Ver todo (con vuelos)', onClick: () => layerRef.current && fit(map, layerRef.current, trip, { animate: true }) },
         { icon: 'navigation', label: 'Mi ubicación', onClick: locate },
+        { icon: 'download', label: 'Exportar lugares y rutas (KML)', onClick: () => { if (exportTripKml(trip)) toast('Archivo KML guardado. Para verlo en Google Maps, impórtalo en «Mis mapas» (mymaps.google.com).', 'ok', { ms: 9000 }); else toast('No se pudo guardar el archivo.', 'error'); } },
         '-',
         ...Object.entries({ auto: 'Estilo automático', ...Object.fromEntries(Object.entries(MAP_STYLES).map(([k, v]) => [k, `Estilo: ${v.label}`])) })
           .map(([k, label]) => ({ icon: mapStyle === k ? 'check' : 'layers', label, onClick: () => setPrefs({ mapStyle: k }) })),

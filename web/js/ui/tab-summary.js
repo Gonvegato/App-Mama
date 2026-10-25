@@ -4,6 +4,7 @@ import { Btn, Icon, openModal, Progress } from './kit.js';
 import { TripForm } from './trip-form.js';
 import { ResCard, openReservation, addReservation } from './tab-bookings.js';
 import { MiniMap } from './tab-map.js';
+import { OfflineCard } from './offline-card.js';
 import { updateTrip } from '../lib/store.js';
 import { tripStats, RES_KINDS, buildAgenda } from '../lib/model.js';
 import { AgendaItem } from './tab-itinerary.js';
@@ -66,6 +67,8 @@ export function SummaryTab({ trip }) {
           <div class="fact"><span class="eyebrow">Viajeros</span><b>${trip.travelers.length ? trip.travelers.join(', ') : '—'}</b>
             ${!trip.travelers.length && html`<button type="button" class="link-btn small" onClick=${() => openModal(TripForm, { trip })}>Añadir</button>`}</div>
         </section>
+
+        <${OfflineCard} trip=${trip} />
 
         ${st.kind === 'now' && (() => {
           const today = buildAgenda(trip).days.find(d => d.day === todayISO());

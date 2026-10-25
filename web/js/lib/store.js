@@ -3,6 +3,7 @@ import { useEffect, useState } from '../../vendor/preact-htm.js';
 import { LocalBackend, CloudBackend, niceError } from './backend.js';
 import { normalizeTrip, newTrip, tripFilePaths } from './model.js';
 import { clone, uid, sid, safeFileName, fileExt } from './util.js';
+import { readCache, writeCache, clearCache } from './idb-cache.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -80,8 +81,22 @@ export async function boot() {
       return;
     }
     backend = await new CloudBackend(cfg.url, cfg.key).init();
-    const cached = LS.get('cv-cache', null);
-    const user = await backend.getUser();
+    const cached = await newestCache();
+    // Si la sesión ha caducado, hay que renovarla por internet y la librería reintenta durante más de
+    // 30 s (la app se queda en la pantalla de carga). Si ya hay una copia de este usuario en el
+    // dispositivo: sin conexión no se espera, y con mala conexión solo unos segundos. La app abre con
+    // la copia y, al volver la conexión, se pone al día sola. Si la sesión se ha cerrado de verdad
+    // (la comprobación contesta «nadie»), se va a la pantalla de entrar como siempre.
+    let user = null, unsure = false;
+    if (cached?.user && !navigator.onLine) unsure = true;
+    else if (cached?.user) {
+      const r = await Promise.race([
+        backend.getUser().then(u => ({ u }), () => ({})),
+        new Promise(res => setTimeout(() => res({}), 5000)),
+      ]);
+      if (r.u !== undefined) user = r.u; else unsure = true;
+    } else user = await backend.getUser();
+    if (!user && unsure) user = { id: cached.user, email: cached.email || null, offline: true };
     if (!user) { setState({ phase: 'login', mode: 'cloud' }); return; }
     setState({ mode: 'cloud', user });
     if (cached?.user === user.id && Array.isArray(cached.trips)) {
@@ -102,13 +117,13 @@ export async function signIn(email, password) {
 
 export async function signOut() {
   try { await backend?.signOut(); } catch { /* nada */ }
-  LS.del('cv-cache');
+  LS.del('cv-cache'); clearCache();
   setState({ trips: [], user: null, phase: state.mode === 'cloud' ? 'login' : 'setup' });
 }
 
 export async function resetConfig() {
   try { await backend?.signOut(); } catch { /* nada */ }
-  LS.del('cv-config'); LS.del('cv-cache'); LS.del('cv-pending');
+  LS.del('cv-config'); LS.del('cv-cache'); LS.del('cv-pending'); clearCache();
   location.hash = '#/';
   location.reload();
 }
@@ -143,9 +158,19 @@ async function loadAll() {
 
 export const refresh = () => loadAll().catch(e => toast(niceError(e), 'error'));
 
+// La copia más reciente entre localStorage e IndexedDB.
+async function newestCache() {
+  const a = LS.get('cv-cache', null), b = await readCache();
+  return (b?.at || 0) > (a?.at || 0) ? b : (a || b || null);
+}
+
 function persistCache() {
   if (state.mode !== 'cloud' || !state.user?.id) return;
-  LS.set('cv-cache', { user: state.user.id, trips: state.trips, settings: state.settings });
+  const data = { user: state.user.id, email: state.user.email || null, trips: state.trips, settings: state.settings, at: Date.now() };
+  if (LS.set('cv-cache', data)) return;
+  // localStorage se llena (unos 5 MB): la copia pasa a IndexedDB, que admite mucho más.
+  // Hasta que se guarde bien no se borra la anterior, para no quedarse sin nada.
+  writeCache(data).then(ok => { if (ok) LS.del('cv-cache'); });
 }
 
 // ---------------- Guardado con cola ----------------

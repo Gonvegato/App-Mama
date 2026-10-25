@@ -2,15 +2,19 @@
 // Pensado también sin conexión: los puntos de la ruta están guardados y el mapa usa los
 // trozos ya visitados. La nube y el móvil siguen funcionando igual.
 import { html, useState, useEffect, useRef } from '../../vendor/preact-htm.js';
-import { Btn, Icon, IconBtn, Empty, Field, Modal, openModal, confirm, Select } from './kit.js';
+import { Btn, Icon, IconBtn, Empty, Field, Modal, openModal, confirm, Select, pickFiles, Spinner } from './kit.js';
 import { ImportModal } from './map-import.js';
 import { loadLeaflet, baseLayer, currentMapStyle } from '../lib/leaflet-loader.js';
 import { PLACE_CATS, RES_KINDS } from '../lib/model.js';
 import { ICONS } from '../lib/icon-data.js';
-import { updateTrip, getTrip } from '../lib/store.js';
+import { updateTrip, getTrip, toast } from '../lib/store.js';
+import { exportRouteGpx } from '../lib/export.js';
 import { routeLengthKm, nearestOnRoute, fmtKm, routeStats } from '../lib/geo-route.js';
-import { appleDirectionsUrl, googleDirectionsUrl, isApple, distanceKm } from '../lib/geo.js';
-import { cx, eachDay, fmtDate } from '../lib/util.js';
+import { appleDirectionsUrl, googleDirectionsUrl, isApple, distanceKm, navigateUrl } from '../lib/geo.js';
+import { cx, eachDay, fmtDate, todayISO } from '../lib/util.js';
+import { resizeImage } from '../lib/image.js';
+import { pcloudConfigured } from '../lib/pcloud.js';
+import { queuePhoto, queuedPhotos, onQueueChange, flushPhotoQueue } from '../lib/photo-queue.js';
 
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -48,6 +52,9 @@ function RouteFollow({ trip, route, onExit }) {
   const [info, setInfo] = useState(null);                  // { offKm, aheadKm, progress }
   const [follow, setFollow] = useState(true);
   const followRef = useRef(true);
+  const lastPos = useRef(null);                            // última ubicación conocida (para las fotos)
+  const [queued, setQueued] = useState(0);                 // fotos hechas que aún no se han subido
+  const [shooting, setShooting] = useState(false);
   useEffect(() => { followRef.current = follow; }, [follow]);
 
   const total = routeLengthKm(route.points);
@@ -97,8 +104,9 @@ function RouteFollow({ trip, route, onExit }) {
     if (!navigator.geolocation) { setStatus({ state: 'error', msg: 'Este dispositivo no permite conocer la ubicación.' }); return; }
     const id = navigator.geolocation.watchPosition(pos => {
       const L = window.L, m = mapRef.current;
-      if (!m) return;
       const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      lastPos.current = { ...here, acc: Math.round(pos.coords.accuracy || 0) };   // para las fotos, aunque el mapa aún no esté listo
+      if (!m) return;
       const ll = [here.lat, here.lng];
       const acc = pos.coords.accuracy || 0;
       if (!meRef.current) {
@@ -121,6 +129,33 @@ function RouteFollow({ trip, route, onExit }) {
     return () => navigator.geolocation.clearWatch(id);
   }, []);
 
+  useEffect(() => {
+    const upd = () => queuedPhotos(trip.id).then(l => setQueued(l.length));
+    upd();
+    return onQueueChange(upd);
+  }, []);
+
+  // Foto con la cámara del móvil (o de la galería). Se guarda enseguida en el móvil con el
+  // sitio donde estás y se sube cuando haya conexión, así que funciona sin cobertura.
+  const addPhoto = async camera => {
+    const files = await pickFiles({ accept: 'image/*', multiple: !camera, capture: camera ? 'environment' : undefined });
+    if (!files.length) return;
+    setShooting(true);
+    const pos = lastPos.current;
+    let n = 0;
+    try {
+      for (const f of files) {
+        const img = await resizeImage(f, 2560);
+        await queuePhoto({ tripId: trip.id, blob: img, name: f.name || 'foto.jpg', routeId: route.id, day: route.day || todayISO(), geo: pos });
+        n++;
+      }
+      toast(!pcloudConfigured() ? 'Foto guardada en este móvil. Para subirla, conecta pCloud en Ajustes → Fotos.'
+        : navigator.onLine ? (n > 1 ? `${n} fotos guardadas` : 'Foto guardada') : 'Foto guardada en el móvil. Se subirá cuando haya conexión.', 'ok');
+      flushPhotoQueue();
+    } catch (e) { toast(`No se pudo guardar la foto: ${e.message}`, 'error'); }
+    setShooting(false);
+  };
+
   const off = info && info.offKm > 0.08;
   return html`<div class="follow">
     <div class="follow-map" ref=${ref}></div>
@@ -132,6 +167,14 @@ function RouteFollow({ trip, route, onExit }) {
     ${status.state === 'denied' && html`<div class="follow-msg"><${Icon} name="navigation" size=${18} /> No se ha dado permiso para la ubicación. Actívalo para ver dónde estás sobre la ruta.</div>`}
     ${status.state === 'error' && html`<div class="follow-msg"><${Icon} name="alert" size=${18} /> ${status.msg || 'No se pudo obtener la ubicación.'}</div>`}
     ${status.state === 'init' && html`<div class="follow-msg"><${Icon} name="navigation" size=${18} /> Buscando tu ubicación…</div>`}
+
+    <div class="follow-shot">
+      <button type="button" class="follow-cam" onClick=${() => addPhoto(true)} disabled=${shooting} aria-label="Hacer una foto" title="Hacer una foto">
+        ${shooting ? html`<${Spinner} size=${22} />` : html`<${Icon} name="camera" size=${24} />`}
+        ${queued > 0 && html`<span class="follow-badge" title=${`${queued} sin subir`}>${queued}</span>`}
+      </button>
+      <${IconBtn} icon="image" label="Elegir fotos de la galería" class="follow-gal" onClick=${() => addPhoto(false)} />
+    </div>
 
     ${!follow && status.state === 'ok' && html`<button type="button" class="follow-recenter" onClick=${() => { setFollow(true); const m = mapRef.current; if (m && meRef.current) m.panTo(meRef.current.getLatLng(), { animate: true }); }}><${Icon} name="crosshair" size=${16} /> Centrar en mí</button>`}
 
@@ -239,7 +282,9 @@ function RouteCard({ trip, r, onFollow }) {
     <div class="btn-row">
       <${Btn} kind="primary" size="sm" icon="navigation" onClick=${() => onFollow(r)}>Empezar</${Btn}>
       <${Btn} size="sm" icon="info" onClick=${() => openModal(RouteInfo, { trip, r, onFollow })}>Detalles</${Btn}>
+      <a class="btn btn-default btn-sm" href=${navigateUrl(ends[0])} target="_blank" rel="noopener"><${Icon} name="navigation" size=${15} /><span>Ir al inicio</span></a>
       <a class="btn btn-default btn-sm" href=${isApple() ? appleDirectionsUrl(r.stops || ends) : googleDirectionsUrl(r.stops || ends)} target="_blank" rel="noopener"><${Icon} name="external" size=${15} /><span>Abrir en Maps</span></a>
+      <${Btn} size="sm" kind="ghost" icon="download" onClick=${() => { if (exportRouteGpx(r)) toast('Ruta guardada como GPX. Para verla en Google Maps, impórtala en «Mis mapas» (mymaps.google.com).', 'ok', { ms: 9000 }); else toast('No se pudo guardar el archivo.', 'error'); }}>Exportar GPX</${Btn}>
       <${Btn} size="sm" kind="ghost" icon="edit" onClick=${rename}>Renombrar</${Btn}>
       <${Btn} size="sm" kind="ghost" icon="trash" onClick=${del}>Quitar</${Btn}>
     </div>
@@ -247,8 +292,16 @@ function RouteCard({ trip, r, onFollow }) {
 }
 
 export function RoutesTab({ trip, route }) {
-  const [following, setFollowing] = useState(null); // ruta que se está siguiendo
   const routes = trip.routes.filter(r => r.points?.length > 1);
+  // Ruta que se está siguiendo. Se recuerda en la pestaña: al sacar la foto, el móvil puede
+  // recargar la app y así se vuelve justo donde se estaba.
+  const [following, setFollowingRaw] = useState(() => {
+    try { const v = JSON.parse(sessionStorage.getItem('cv-follow') || 'null'); return v?.tripId === trip.id ? routes.find(r => r.id === v.routeId) || null : null; } catch { return null; }
+  });
+  const setFollowing = r => {
+    try { if (r) sessionStorage.setItem('cv-follow', JSON.stringify({ tripId: trip.id, routeId: r.id })); else sessionStorage.removeItem('cv-follow'); } catch { /* nada */ }
+    setFollowingRaw(r);
+  };
   // Desde el itinerario (#/viaje/id/rutas/<ruta>) se abren los detalles de esa ruta.
   useEffect(() => {
     const r = route?.sub && routes.find(x => x.id === route.sub);

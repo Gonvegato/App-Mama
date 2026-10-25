@@ -5,6 +5,7 @@ import { useStore, storageUsage, storageLimit, STORAGE_PLANS, saveSettings, upda
 import { DOC_KINDS } from '../lib/model.js';
 import { fmtSize, fmtDate, tripStatus, cx, dateOnly } from '../lib/util.js';
 import { openDoc } from './tab-docs.js';
+import { listOfflineInfo, removeTripOffline, offlineBytes } from '../lib/offline.js';
 
 export const WARN_AT = 0.8;
 
@@ -82,6 +83,33 @@ function CleanupModal({ close }) {
 
 export const openCleanup = () => openModal(CleanupModal, {});
 
+// Viajes descargados para usar sin conexión en este dispositivo, con botón para quitarlos.
+// Quitar aquí solo borra la copia de este dispositivo, no el viaje ni sus archivos en la nube.
+function OfflineList() {
+  const trips = useStore(s => s.trips);
+  const [list, setList] = useState(null);
+  const reload = () => listOfflineInfo().then(l => setList(l.sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''))));
+  useEffect(() => { reload(); }, []);
+  if (!list?.length) return null;
+  const isPast = m => { const t = trips.find(x => x.id === m.tripId); return !t || tripStatus(t).kind === 'past'; };
+  const past = list.filter(isPast);
+  const drop = async ms => {
+    const total = ms.reduce((a, m) => a + offlineBytes(m), 0);
+    if (!await confirm(ms.length === 1 ? '¿Quitar este viaje del dispositivo?' : `¿Quitar ${ms.length} viajes del dispositivo?`, `Se liberan unos ${fmtSize(total)} de este dispositivo. No se borra nada de la nube.`, { okLabel: 'Quitar', danger: true })) return;
+    for (const m of ms) await removeTripOffline(m.tripId);
+    toast(`Liberados ${fmtSize(total)} de este dispositivo`, 'ok');
+    reload();
+  };
+  return html`<div class="offline-block">
+    <h3 class="section-title">Viajes descargados en este dispositivo</h3>
+    <p class="muted small">Copias para usar sin conexión. Quitarlas no borra el viaje ni nada de la nube.</p>
+    <ul class="offline-list">${list.map(m => html`<li>
+      <span class="ol-text"><b>${m.title}</b><small>${fmtSize(offlineBytes(m))} · guardado el ${fmtDate(dateOnly(m.savedAt), 'medium')}${isPast(m) ? ' · viaje pasado' : ''}</small></span>
+      <${Btn} size="sm" kind="ghost" icon="trash" onClick=${() => drop([m])}>Quitar</${Btn}></li>`)}</ul>
+    ${past.length > 0 && html`<div class="btn-row"><${Btn} icon="trash" onClick=${() => drop(past)}>Quitar los de viajes pasados (${past.length})</${Btn}></div>`}
+  </div>`;
+}
+
 // Tarjeta de Ajustes.
 export function StorageSection() {
   const s = useStore();
@@ -103,6 +131,7 @@ export function StorageSection() {
         <${Btn} icon="trash" onClick=${async () => { await openCleanup(); reload(); }}>Liberar espacio</${Btn}>
         <${Btn} kind="ghost" icon="refresh" onClick=${reload}>Actualizar</${Btn}>
       </div>
+      <${OfflineList} />
       ${cloud && html`<div class="field usage-plan"><span class="field-label">Plan de Supabase</span>
         <${Segmented} value=${s.settings.storagePlan || 'free'} onChange=${v => saveSettings({ storagePlan: v })}
           options=${Object.entries(STORAGE_PLANS).map(([value, p]) => ({ value, label: `${p.label} · ${fmtSize(p.bytes)}` }))} />

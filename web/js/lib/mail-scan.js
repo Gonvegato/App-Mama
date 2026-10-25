@@ -5,6 +5,7 @@
 // lo encontrado y lo descartado en este dispositivo (localStorage, no se sincroniza).
 import { state, setState, LS } from './store.js';
 import { gmailConfigured, gmailSearch, suggestedQuery } from './gmail.js';
+import { rankMails, domainOf, baseDomain } from './mail-score.js';
 
 const THROTTLE_MS = 6 * 60 * 60 * 1000;         // vuelve a mirar como mucho cada 6 h
 const RECENT_DAYS = 30;                          // no mira viajes acabados hace más de 30 días
@@ -13,16 +14,28 @@ const dismissKey = id => `cv-maildismiss-${id}`; // ids de Gmail que ya se desca
 
 const getDismissed = id => new Set(LS.get(dismissKey(id), []));
 
+// Remitentes de los que se han guardado correos: la próxima vez puntúan más (solo en este dispositivo).
+const SENDERS_KEY = 'cv-mailsenders';
+const getSenders = () => LS.get(SENDERS_KEY, {});
+export function learnSender(from) {
+  const d = baseDomain(domainOf(from));
+  if (!d) return;
+  const s = getSenders();
+  s[d] = Math.min(4, (s[d] || 0) + 1);
+  LS.set(SENDERS_KEY, s);
+}
+
 function setScan(tripId, data) {
   setState(s => ({ mailScan: { ...(s.mailScan || {}), [tripId]: data } }));
 }
 
-// Quita ya guardados y ya descartados, y ordena del más nuevo al más viejo.
+// Quita ya guardados y ya descartados, y deja solo los que parecen del viaje: primero los probables
+// y luego los dudosos (publicidad, boletines y peticiones de reseña se apartan).
 function freshen(trip, list) {
   const saved = new Set((trip.emails || []).map(e => e.gmailId));
   const dismissed = getDismissed(trip.id);
-  return (list || []).filter(r => !saved.has(r.id) && !dismissed.has(r.id))
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const fresh = (list || []).filter(r => !saved.has(r.id) && !dismissed.has(r.id));
+  return rankMails(fresh, trip, getSenders()).filter(r => r.level !== 'oculto');
 }
 
 // Guarda solo lo justo de cada correo para enseñarlo luego sin volver a Gmail.

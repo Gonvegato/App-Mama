@@ -9,6 +9,7 @@ import { resizeImage } from '../lib/image.js';
 import { pcloudConfigured, pcloudTripFolder, pcloudUpload, pcloudThumb, pcloudDelete } from '../lib/pcloud.js';
 import { sid } from '../lib/util.js';
 import { go } from '../lib/router.js';
+import { queuedPhotos, onQueueChange, flushPhotoQueue } from '../lib/photo-queue.js';
 
 // Una miniatura de la galería (pide a pCloud la imagen y la muestra).
 function PhotoTile({ photo, onOpen }) {
@@ -53,6 +54,13 @@ function PhotoViewer({ close, trip, photo }) {
 }
 
 export function PhotosTab({ trip }) {
+  const [waiting, setWaiting] = useState(0);   // fotos hechas en ruta que aún no se han subido
+  useEffect(() => {
+    const upd = () => queuedPhotos(trip.id).then(l => setWaiting(l.length));
+    upd();
+    flushPhotoQueue();
+    return onQueueChange(upd);
+  }, [trip.id]);
   const [busy, setBusy] = useState(false);
   const [prog, setProg] = useState(null);   // {i, total, pct}
 
@@ -94,6 +102,7 @@ export function PhotosTab({ trip }) {
       </${Btn}>
     </div>
     <p class="muted small">Las fotos se guardan en pCloud. Para verlas hace falta conexión.</p>
+    ${waiting > 0 && html`<p class="notice notice-warn"><${Icon} name="info" size=${16} /> <span>${waiting === 1 ? 'Hay 1 foto hecha en una ruta esperando' : `Hay ${waiting} fotos hechas en rutas esperando`} a subirse. Se suben solas cuando haya conexión.</span></p>`}
     ${photos.length === 0
       ? html`<${Empty} icon="image" title="Aún no hay fotos" text="Pulsa «Añadir fotos» para subir las del viaje." />`
       : html`<div class="photo-grid">
