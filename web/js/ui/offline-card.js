@@ -5,7 +5,8 @@ import { useStore, toast } from '../lib/store.js';
 import { downloadTripOffline, removeTripOffline, getOfflineInfo, offlineBytes } from '../lib/offline.js';
 import { fmtSize, fmtDate, dateOnly } from '../lib/util.js';
 
-const phaseText = p => (!p ? '' : p.phase === 'docs' ? `Guardando documentos… ${p.done} de ${p.total}` : `Descargando el mapa… ${p.done} de ${p.total} trozos`);
+const phaseText = p => (!p ? '' : p.phase === 'docs' ? `Guardando documentos… ${p.done} de ${p.total}`
+  : p.phase === 'ocr' ? 'Guardando el lector de tickets…' : `Descargando el mapa… ${p.done} de ${p.total} trozos`);
 
 export function OfflineCard({ trip }) {
   const [info, setInfo] = useState(undefined);       // undefined = cargando, null = nada descargado
@@ -46,6 +47,7 @@ export function OfflineCard({ trip }) {
       <li><${Icon} name="check-circle" size=${16} /> Guardado el ${fmtDate(dateOnly(info.savedAt), 'medium')} · ${fmtSize(offlineBytes(info))}</li>
       <li><${Icon} name="file" size=${16} /> ${info.docs.total ? `${info.docs.ok} de ${info.docs.total} documentos` : 'Sin documentos que guardar'}</li>
       <li><${Icon} name="map" size=${16} /> ${m?.tiles ? `Mapa de la zona hasta el detalle ${m.maxZoom || '—'} de 14${m.truncated ? ' (el límite de descarga hizo que no cupiera más)' : ''}` : m?.skipped === 'sin-sitios' ? 'Sin mapa: añade lugares o rutas con ubicación y vuelve a descargar' : 'El mapa no se ha podido descargar'}</li>
+      ${info.ocr?.ok && html`<li><${Icon} name="camera" size=${16} /> Lector de tickets listo para escanear gastos sin conexión</li>`}
     </ul>`}
     ${outdated && html`<p class="notice notice-warn"><${Icon} name="info" size=${16} /> <span>Has cambiado cosas del viaje desde que lo guardaste. Pulsa «Actualizar» para llevarte lo último.</span></p>`}
     ${mapStyle === 'detalle' && html`<p class="notice notice-warn"><${Icon} name="info" size=${16} /> <span>Tienes elegido el mapa «Clásico (OpenStreetMap)», que no se puede guardar sin conexión. Elige Claro, Color u Oscuro en el menú del mapa.</span></p>`}

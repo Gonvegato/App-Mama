@@ -2,6 +2,7 @@
 const VERSION = 'cv-1.1.1';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'mapa-v2';
+const OCR = 'ocr-v1';       // lector de tickets (≈8 MB): no cambia con cada versión de la app, así que no se borra al actualizar
 const MAX_TILES = 8000;   // da para varios viajes descargados (hasta 3.000 teselas cada uno)
 
 self.addEventListener('install', e => {
@@ -24,7 +25,7 @@ self.addEventListener('message', e => { if (e.data === 'activar-ya') self.skipWa
 
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== SHELL && k !== TILES) await caches.delete(k);
+    for (const k of await caches.keys()) if (k !== SHELL && k !== TILES && k !== OCR) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -63,6 +64,19 @@ self.addEventListener('fetch', e => {
   }
 
   if (url.origin !== self.location.origin) return;
+
+  // Lector de tickets: primero la copia guardada (son archivos fijos y pesados).
+  if (url.pathname.includes('/vendor/tesseract/')) {
+    e.respondWith((async () => {
+      const c = await caches.open(OCR);
+      const hit = await c.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res.ok) c.put(req, res.clone());
+      return res;
+    })());
+    return;
+  }
 
   // Configuración: siempre la más reciente si hay red.
   // Archivos de la app: red primero (para recibir mejoras) y si no hay conexión, la caché.

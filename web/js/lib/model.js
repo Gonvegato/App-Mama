@@ -34,6 +34,7 @@ export const DOC_KINDS = {
   seguro:    { label: 'Seguro',           icon: 'shield' },
   identidad: { label: 'Documentación',    icon: 'id' },
   foto:      { label: 'Foto',             icon: 'image' },
+  recibo:    { label: 'Ticket de gasto',  icon: 'receipt' },
   enlace:    { label: 'Enlace',           icon: 'link' },
   otro:      { label: 'Otro',             icon: 'file' },
 };

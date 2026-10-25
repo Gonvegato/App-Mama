@@ -12,6 +12,8 @@ import { planTiles, tileUrl, tripGeo, MIN_ZOOM, MAX_ZOOM } from './tiles.js';
 
 const OFM = 'https://tiles.openfreemap.org';
 const TILE_CACHE = 'mapa-v2';                 // el mismo nombre que en sw.js
+const OCR_CACHE = 'ocr-v1';                   // ídem: el lector de tickets
+const OCR_FILES = ['tesseract.min.js', 'worker.min.js', 'tesseract-core-lstm.wasm.js', 'lang/spa.traineddata.gz', 'lang/eng.traineddata.gz'];
 // Condiciones de OpenFreeMap para descargas sin conexión: como mucho 3.000 teselas o 50 MB, y 4 peticiones
 // a la vez. Se queda por debajo (45 MB) para dejar margen a los archivos de estilo, símbolos y letras.
 export const LIMITS = { tiles: 3000, bytes: 45 * 1024 * 1024, parallel: 4 };
@@ -138,9 +140,24 @@ export async function downloadTripOffline(trip, { onProgress, signal } = {}) {
     }
   }
 
+  // 3) Lector de tickets (OCR), para poder escanear gastos sin cobertura. Es el mismo para todos los viajes.
+  const ocr = { ok: false, bytes: 0 };
+  if (cacheOk() && !signal?.aborted) {
+    const cache = await caches.open(OCR_CACHE);
+    let k = 0, good = 0;
+    onProgress?.({ phase: 'ocr', done: 0, total: OCR_FILES.length, bytes: 0 });
+    for (const f of OCR_FILES) {
+      if (signal?.aborted) break;
+      const r = await grab(cache, new URL(`../../vendor/tesseract/${f}`, import.meta.url).href);
+      if (r.bytes) { good++; ocr.bytes += r.bytes; }
+      onProgress?.({ phase: 'ocr', done: ++k, total: OCR_FILES.length, bytes: ocr.bytes });
+    }
+    ocr.ok = good === OCR_FILES.length;
+  }
+
   const info = {
     tripId: trip.id, title: trip.title || trip.destination || 'Viaje', savedAt: new Date().toISOString(), tripUpdatedAt: trip.updatedAt || '',
-    persistent, docs: { total: docs.length, ok, bytes: docBytes }, files: docs.map(d => d.path), map,
+    persistent, docs: { total: docs.length, ok, bytes: docBytes }, files: docs.map(d => d.path), map, ocr,
   };
   if (!signal?.aborted) await idbPut('manifest', trip.id, info);
   return info;
