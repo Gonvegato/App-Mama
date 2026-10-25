@@ -1118,3 +1118,20 @@ code.break { word-break: break-all; display: inline-block; background: var(--sur
 .scan-text pre { white-space: pre-wrap; font-size: .8rem; max-height: 10rem; overflow: auto; background: var(--surface); padding: .6rem; border-radius: 8px; margin: .4rem 0 0; }
 .field.is-guess .input, .field.is-guess .cat-pick { border-color: #c98a1b; box-shadow: 0 0 0 2px color-mix(in srgb, #c98a1b 22%, transparent); }
 .field.is-guess > .field-label::after { content: ' · revisar'; color: #a8710f; font-weight: 560; }
+
+/* Pagos automáticos */
+.pay-panel > * + * { margin-top: .9rem; }
+.pay-steps { margin: .4rem 0 .2rem; padding-left: 1.3rem; color: var(--ink-2); }
+.pay-steps li { margin: .3rem 0; }
+.pay-copy { display: flex; flex-direction: column; gap: .25rem; }
+.pay-label { font-size: .8rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.pay-val { display: flex; gap: .6rem; align-items: flex-start; }
+.pay-val code, .pay-val pre { flex: 1; min-width: 0; margin: 0; padding: .55rem .7rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; font-size: .82rem; overflow-x: auto; white-space: pre; }
+.pay-log { list-style: none; margin: .4rem 0 0; padding: 0; display: flex; flex-direction: column; }
+.pay-log li { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.pay-log li.ok .icon { color: var(--ok); }
+.pay-log li.warn .icon { color: #a8710f; }
+.pay-log .icon { margin-top: .2rem; flex: none; }
+.pay-log-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pay-log-text b { font-weight: 560; color: var(--ink); }
+.pay-log-text small { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

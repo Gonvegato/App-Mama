@@ -14,6 +14,7 @@ import { Settings } from './ui/settings.js';
 import { Setup, Login, Splash, BootError } from './ui/auth.js';
 import { cx } from './lib/util.js';
 import { startPhotoSync } from './lib/photo-queue.js';
+import { startPaymentSync } from './lib/payments.js';
 
 function Shell() {
   const route = useRoute();
@@ -47,6 +48,7 @@ watchSystemTheme(() => state.prefs);
 render(html`<${App} />`, document.getElementById('app'));
 boot().then(async () => {
   startPhotoSync();
+  startPaymentSync();
   // Al volver de pCloud, se guarda el permiso en los ajustes.
   try { if (await pcloudCaptureRedirect()) toast('pCloud conectado. Ya puedes subir fotos.', 'ok'); } catch { /* nada */ }
   return initUsb();

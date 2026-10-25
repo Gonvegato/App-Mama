@@ -10,6 +10,7 @@ import { downloadBlob, cx, todayISO } from '../lib/util.js';
 import qrcode from '../../vendor/qrcode.mjs';
 import { StorageSection } from './storage.js';
 import { UsbSection } from './usb-panel.js';
+import { PaymentsPanel } from './payments-card.js';
 
 const APP_VERSION = '1.0.7';
 
@@ -235,6 +236,10 @@ export function Settings({ route }) {
     <${Gmail} />
 
     <${Pcloud} />
+
+    <${Section} id="pagos" icon="wallet" title="Pagos automáticos">
+      <${PaymentsPanel} />
+    </${Section}>
 
     <${Section} id="movil" icon="compass" title="Usarla en el móvil"
       intro=${url ? 'Abre esta dirección en el móvil (o escanea el código con la cámara) y entra con el mismo correo y contraseña.' : 'Cuando la web esté publicada, aquí aparecerá su dirección y un código para abrirla con la cámara del móvil.'}>

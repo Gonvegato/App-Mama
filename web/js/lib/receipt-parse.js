@@ -94,7 +94,7 @@ function findDate(text, trip, today) {
 
 // ---------- Comercio ----------
 const SKIP_LINE = /ticket|factura|simplificada|\bcopia\b|cliente|\bc\.?i\.?f\b|\bn\.?i\.?f\b|tel[eé]?f|tfno|www\.|https?:|@|\bc\/|calle|\bavda?\b|avenida|plaza|\bpza\b|paseo|\bn[ºo°]\s*\d|fecha|\bhora\b|\bmesa\b|\bcaja\b|operador|camarero|gracias|bienvenid|\biva\b|total|\bdni\b|c\.p\.|\bcp\b\s*\d|\d{5}|^\W*$/i;
-function titleCase(s) {
+export function titleCase(s) {
   if (s !== s.toUpperCase()) return s;                               // solo si viene todo en mayúsculas
   // Las siglas con puntos (S.L., S.A.) se dejan como están.
   return s.split(/(\s+)/).map(w => (/^(?:\p{L}\.){2,}\p{L}?\.?$/u.test(w) ? w : w.toLowerCase().replace(/(^|[\-(])([a-záéíóúñü])/g, (_, p, c) => p + c.toUpperCase()).replace(/^[a-záéíóúñü]/, c => c.toUpperCase()))).join('');

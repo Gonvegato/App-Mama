@@ -218,7 +218,7 @@ export function ExpensesTab({ trip }) {
         <h3 class="day-title">${d === 'sin-fecha' ? 'Sin fecha' : fmtDate(d, 'daylong')}<span class="muted small">${fmtMoney(list.filter(x => x.currency === cur).reduce((a, x) => a + x.amount, 0), cur)}</span></h3>
         <ul class="exp-list">${list.map(e => html`<li><button type="button" class="exp-row" onClick=${() => e.res ? openReservation(trip, e.res) : openModal(ExpenseForm, { trip, exp: e })}>
           <span class="exp-ico"><${Icon} name=${e.res ? RES_KINDS[e.res.kind].icon : EXPENSE_CATS[e.category]?.icon || 'wallet'} size=${17} /></span>
-          <span class="exp-text"><b>${e.text}</b><small>${e.res ? 'Reserva' : EXPENSE_CATS[e.category]?.label}${e.receiptDocId && trip.docs.some(d => d.id === e.receiptDocId) ? ' · con ticket' : ''}${e.paidBy && people.length > 1 ? ` · pagó ${e.paidBy}${e.split === false ? ' · personal' : ''}` : ''}</small></span>
+          <span class="exp-text"><b>${e.text}</b><small>${e.res ? 'Reserva' : EXPENSE_CATS[e.category]?.label}${e.receiptDocId && trip.docs.some(d => d.id === e.receiptDocId) ? ' · con ticket' : ''}${e.source === 'notificacion' ? ' · aviso de pago' : ''}${e.paidBy && people.length > 1 ? ` · pagó ${e.paidBy}${e.split === false ? ' · personal' : ''}` : ''}</small></span>
           <span class="exp-amt">${fmtMoney(e.amount, e.currency)}</span></button></li>`)}</ul>
       </section>`)}
   </div>`;
